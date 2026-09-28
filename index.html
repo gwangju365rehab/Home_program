@@ -172,7 +172,7 @@ details.domg .body{display:flex;gap:8px 10px;flex-wrap:wrap;padding:0 14px 12px}
     <div class="acts"><button class="btn pri big" id="btnDashNew">새 환자 평가</button></div></div>
   <div class="box"><h3>환자 기록 저장 위치</h3>
     <div class="tier t1" id="storeBox"><span id="storeInfo"></span></div>
-    <div class="acts" style="margin-top:12px"><button class="btn pri" id="btnDir">저장 폴더 연결</button><button class="btn" id="btnDirRe" hidden>폴더 다시 연결</button><button class="btn" id="btnPExport">환자 기록 백업(.json)</button><button class="btn" id="btnPImportPick">백업 불러오기</button><input type="file" id="pImportFile" accept=".json" hidden></div>
+    <div class="acts" style="margin-top:12px"><button class="btn pri" id="btnDir">저장 폴더 연결</button><button class="btn" id="btnDirRe" hidden>폴더 다시 연결</button><button class="btn" id="btnReload">폴더에서 새로고침</button><button class="btn" id="btnPExport">환자 기록 백업(.json)</button><button class="btn" id="btnPImportPick">백업 불러오기</button><input type="file" id="pImportFile" accept=".json" hidden></div>
     <div class="row acts" style="margin-top:12px"><div class="f" style="max-width:240px"><label for="s_ot2">담당 치료사 (유인물에 표시)</label><input id="s_ot2"></div><button class="btn" id="btnOt" style="margin-top:20px">저장</button></div>
     <p class="muted" style="margin-bottom:0">환자 이름 대신 가명·환자코드만 입력하세요. 환자 기록은 병원 PC 폴더에만 저장되고, github에는 운동 목록만 올라갑니다. 환자 기록 폴더는 github나 외부로 올리지 마세요.</p>
   </div>
@@ -3035,15 +3035,52 @@ function mergeP(a,b){
   return {patients:[...m.values()]};
 }
 async function writeFile(dir,name,text){const fh=await dir.getFileHandle(name,{create:true});const w=await fh.createWritable();await w.write(text);await w.close();}
-async function persistP(){
+async function pdir(){return await dirHandle.getDirectoryHandle("patients",{create:true});}
+function mergeOne(a,b){ // 같은 환자의 두 기록을 합침 (기록 id 기준, 최신 저장본 우선)
+  if(!a)return b;if(!b)return a;
+  const m=new Map(a.records.map(r=>[r.id,r]));
+  b.records.forEach(r=>{const q=m.get(r.id);if(!q||(r.savedAt||"")>(q.savedAt||""))m.set(r.id,r);});
+  const out={...((a.updatedAt||"")>=(b.updatedAt||"")?a:b)};
+  out.records=[...m.values()];sortRecs(out);return out;
+}
+async function readFolder(){ // 폴더의 환자 파일을 모두 읽어 목록을 새로 만듦
+  if(storeMode!=="folder"||!dirHandle)return;
+  try{
+    const d=await pdir(),list=[];
+    for await (const [name,h] of d.entries()){
+      if(h.kind!=="file"||!name.endsWith(".json"))continue;
+      try{const p=JSON.parse(await (await h.getFile()).text());if(p&&p.id&&Array.isArray(p.records))list.push(p);}catch{}
+    }
+    // 폴더에 아직 저장되지 않은 이 컴퓨터의 기록도 유지
+    const m=new Map(list.map(p=>[p.id,p]));
+    pdb.patients.forEach(p=>m.set(p.id,mergeOne(m.get(p.id),p)));
+    pdb.patients=[...m.values()];
+    try{localStorage.setItem(PKEY,JSON.stringify(pdb));}catch{}
+  }catch(e){toast("폴더를 읽지 못했습니다. 폴더를 다시 연결하세요.",1);}
+}
+async function persistP(p){ // p를 주면 그 환자 파일만, 없으면 전체 저장
   pdb.savedAt=new Date().toISOString();
   try{localStorage.setItem(PKEY,JSON.stringify(pdb));}catch{}
-  if(storeMode==="folder"&&dirHandle){
-    try{const txt=JSON.stringify(pdb,null,1);await writeFile(dirHandle,"homeprog_patients.json",txt);
-      const bk=await dirHandle.getDirectoryHandle("backup",{create:true});await writeFile(bk,`homeprog_patients_${today().replace(/-/g,"")}.json`,txt);}
-    catch(e){storeMode="browser";renderStore();toast("폴더에 저장하지 못했습니다. 폴더를 다시 연결하세요. (브라우저에는 임시 저장됨)",1);return false;}
-  }
-  return true;
+  if(storeMode!=="folder"||!dirHandle)return true;
+  const targets=p?[p]:pdb.patients;
+  try{
+    const d=await pdir();
+    for(const q of targets){
+      const name=q.id+".json";
+      let cur=null;
+      try{cur=JSON.parse(await (await (await d.getFileHandle(name)).getFile()).text());}catch{}
+      const merged=mergeOne(cur,q);          // 다른 컴퓨터가 먼저 저장한 내용과 합친 뒤 저장
+      Object.assign(q,merged);
+      await writeFile(d,name,JSON.stringify(merged,null,1));
+      try{const bk=await(await dirHandle.getDirectoryHandle("backup",{create:true})).getDirectoryHandle(today().replace(/-/g,""),{create:true});
+        await writeFile(bk,name,JSON.stringify(merged));}catch{}
+    }
+    return true;
+  }catch(e){storeMode="browser";renderStore();toast("폴더에 저장하지 못했습니다. 폴더를 다시 연결하세요. (브라우저에는 임시 저장됨)",1);return false;}
+}
+async function removePatientFile(id){
+  if(storeMode!=="folder"||!dirHandle)return;
+  try{const d=await pdir();await d.removeEntry(id+".json");}catch{}
 }
 function idb(){return new Promise((res,rej)=>{const r=indexedDB.open("homeprog",1);r.onupgradeneeded=()=>r.result.createObjectStore("kv");r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
 async function idbSet(k,v){const d=await idb();return new Promise(r=>{const t=d.transaction("kv","readwrite");t.objectStore("kv").put(v,k);t.oncomplete=()=>r();t.onerror=()=>r();});}
@@ -3051,7 +3088,7 @@ async function idbGet(k){const d=await idb();return new Promise(r=>{const q=d.tr
 async function useDir(h){
   dirHandle=h;storeMode="folder";
   try{const f=await(await h.getFileHandle("homeprog_patients.json")).getFile();const d=JSON.parse(await f.text());if(Array.isArray(d.patients))pdb=mergeP(d,pdb);}catch{}
-  await persistP();renderStore();renderDash();toast(`'${h.name}' 폴더에 환자 기록을 저장합니다.`);
+  await readFolder();await persistP();renderStore();renderDash();toast(`'${h.name}' 폴더의 환자 기록을 불러왔습니다. 환자마다 파일이 따로 저장됩니다.`);
 }
 $("btnDir").onclick=async()=>{
   if(!window.showDirectoryPicker){toast("이 브라우저는 폴더 저장을 지원하지 않습니다. 크롬이나 엣지를 쓰세요. 그동안은 브라우저에 임시 저장됩니다.",1);return;}
@@ -3064,7 +3101,7 @@ $("btnOt").onclick=()=>{set.ot=$("s_ot2").value.trim();saveSet();toast("담당 �
 function renderStore(){
   if(!$("storeInfo"))return;
   $("storeBox").className="tier "+(storeMode==="folder"?"t2":"t1");
-  $("storeInfo").innerHTML=storeMode==="folder"?`<b>폴더에 저장 중</b> <span class="muted">${esc(dirHandle.name)} 폴더 · homeprog_patients.json, 날마다 backup 폴더에 사본</span>`:`<b>브라우저에 임시 저장 중</b> <span class="muted">이 컴퓨터 브라우저에만 남아요. 병원 PC의 폴더(예: D드라이브)를 연결하세요.</span>`;
+  $("storeInfo").innerHTML=storeMode==="folder"?`<b>폴더에 저장 중</b> <span class="muted">${esc(dirHandle.name)} 폴더 · patients 폴더에 환자별 파일, 날마다 backup에 사본. 다른 컴퓨터가 저장한 내용은 합쳐집니다.</span>`:`<b>브라우저에 임시 저장 중</b> <span class="muted">이 컴퓨터 브라우저에만 남아요. 병원 PC의 폴더(예: D드라이브)를 연결하세요.</span>`;
   if(storeMode==="folder")$("btnDirRe").hidden=true;
 }
 async function initStore(){
@@ -3073,6 +3110,7 @@ async function initStore(){
   try{if(window.showDirectoryPicker){const h=await idbGet("dir");if(h){if(await h.queryPermission({mode:"readwrite"})==="granted")await useDir(h);else{const b=$("btnDirRe");b.hidden=false;b.textContent=`'${h.name}' 폴더 다시 연결`;}}}}catch{}
   renderStore();renderDash();
 }
+$("btnReload").onclick=async()=>{if(storeMode!=="folder"){toast("먼저 저장 폴더를 연결하세요.",1);return;}await readFolder();renderDash();toast("폴더에서 환자 기록을 다시 읽었습니다.");};
 $("btnPExport").onclick=()=>{download(`홈프로그램_환자기록_${today()}.json`,JSON.stringify({app:"homeprog-patients",version:1,...pdb},null,1),"application/json");toast("환자 기록 백업을 저장했습니다.");};
 $("btnPImportPick").onclick=()=>$("pImportFile").click();
 $("pImportFile").onchange=ev=>{const f=ev.target.files[0];ev.target.value="";if(!f)return;const r=new FileReader();
@@ -3090,7 +3128,7 @@ async function saveRecord(quiet){
   const same=p.records.findIndex(r=>r.date===rec.date);
   if(same>=0){rec.id=p.records[same].id;p.records[same]=rec;}else p.records.push(rec);
   sortRecs(p);
-  const ok=await persistP();
+  const ok=await persistP(p);
   if(ok&&!quiet)toast(same>=0?`${code} · ${rec.date} 기록을 새 처방으로 바꿨습니다.`:`${code} · ${rec.date} 처방을 저장했습니다.`);
   return ok;
 }
@@ -3151,8 +3189,8 @@ $("pmSel").onchange=()=>{pmSelected=$("pmSel").value;renderPM();};
 $("pmBody").onclick=e=>{const b=e.target.closest("button");if(!b)return;const p=pdb.patients.find(x=>x.id===pmSelected);if(!p)return;const rid=b.dataset.load||b.dataset.again||b.dataset.rdel;const r=p.records.find(x=>x.id===rid);if(!r)return;
   if(b.dataset.load){restoreForm(r.form);$("i_date").value=today();$("i_reeval").value="";refresh();go("input");toast(`${p.code} · ${r.date} 평가값을 불러왔습니다.`);}
   if(b.dataset.again)againFrom(p,r);
-  if(b.dataset.rdel)armed(b,"정말 삭제?",async()=>{p.records=p.records.filter(x=>x.id!==rid);p.updatedAt=new Date().toISOString();await persistP();renderPM();toast("기록을 삭제했습니다.");});};
-$("btnPDel").onclick=ev=>{const p=pdb.patients.find(x=>x.id===pmSelected);if(!p)return;armed(ev.currentTarget,`'${p.code}' 기록 전체 삭제?`,async()=>{pdb.patients=pdb.patients.filter(x=>x.id!==p.id);pmSelected=null;await persistP();renderPM();toast("환자 기록을 삭제했습니다.");});};
+  if(b.dataset.rdel)armed(b,"정말 삭제?",async()=>{p.records=p.records.filter(x=>x.id!==rid);p.updatedAt=new Date().toISOString();p.deletedIds=[...(p.deletedIds||[]),rid];await persistP(p);renderPM();toast("기록을 삭제했습니다.");});};
+$("btnPDel").onclick=ev=>{const p=pdb.patients.find(x=>x.id===pmSelected);if(!p)return;armed(ev.currentTarget,`'${p.code}' 기록 전체 삭제?`,async()=>{pdb.patients=pdb.patients.filter(x=>x.id!==p.id);pmSelected=null;await removePatientFile(p.id);await persistP();renderPM();toast("환자 기록을 삭제했습니다.");});};
 initStore();
 // 화면 분리: 치료사용은 라이브러리·설정 숨김, 관리자용은 라이브러리·설정만
 (function(){
