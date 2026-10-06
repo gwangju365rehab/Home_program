@@ -179,7 +179,7 @@ details.domg .body{display:flex;gap:8px 10px;flex-wrap:wrap;padding:0 14px 12px}
   <div class="box"><h3>환자 기록 저장 위치</h3>
     <div class="tier t1" id="storeBox"><span id="storeInfo"></span></div>
     <div class="acts" style="margin-top:12px"><button class="btn pri" id="btnDir">저장 폴더 연결</button><button class="btn" id="btnDirRe" hidden>폴더 다시 연결</button><button class="btn" id="btnReload">폴더에서 새로고침</button><button class="btn" id="btnPExport">환자 기록 백업(.json)</button><button class="btn" id="btnPImportPick">백업 불러오기</button><input type="file" id="pImportFile" accept=".json" hidden></div>
-    <div class="row acts" style="margin-top:12px"><div class="f" style="max-width:240px"><label for="s_ot2">담당 치료사 (유인물에 표시)</label><input id="s_ot2"></div><button class="btn" id="btnOt" style="margin-top:20px">저장</button></div>
+    
     <p class="muted" style="margin-bottom:0">환자 이름 대신 가명·환자코드만 입력하세요. 환자 기록은 병원 PC 폴더에만 저장되고, github에는 운동 목록만 올라갑니다. 환자 기록 폴더는 github나 외부로 올리지 마세요.</p>
   </div>
   <div class="stats" id="stats"></div>
@@ -3102,8 +3102,6 @@ $("btnDir").onclick=async()=>{
   catch(e){if(e&&e.name!=="AbortError")toast("폴더를 연결하지 못했습니다.",1);}
 };
 $("btnDirRe").onclick=async()=>{try{const h=await idbGet("dir");if(h&&await h.requestPermission({mode:"readwrite"})==="granted")await useDir(h);}catch{toast("폴더 권한을 받지 못했습니다.",1);}};
-$("s_ot2").value=set.ot||"";
-$("btnOt").onclick=()=>{set.ot=$("s_ot2").value.trim();saveSet();toast("담당 치료사를 저장했습니다.");};
 function renderStore(){
   if(!$("storeInfo"))return;
   $("storeBox").className="tier "+(storeMode==="folder"?"t2":"t1");
