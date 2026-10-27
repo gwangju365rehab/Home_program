@@ -3656,7 +3656,7 @@ $("dashList").onclick=e=>{const b=e.target.closest("button");if(!b)return;const 
   if(b.dataset.again&&latest(p))againFrom(p,latest(p));};
 
 // 환자 관리
-let pmSelected=null;
+let pmSelected=null,cmpA=null,cmpB=null;
 const KEYS=[["bbs","BBS"],["fac","FAC"],["fmaT","FMA-UE"],["mmse","MMSE"],["mbi","MBI"]];
 
 /* ===== 기능 변화 추이 ===== */
@@ -3770,13 +3770,23 @@ function renderPM(){
     h+=ph+`</div>`;
   }
   if(p.records.length>=2){
-    const a=p.records.at(-2),b=p.records.at(-1);
+    // 고른 두 기록이 이 환자의 것이 아니면 가장 최근 둘로 되돌립니다
+    const ids=p.records.map(r=>r.id);
+    if(!ids.includes(cmpA)||!ids.includes(cmpB)||cmpA===cmpB){cmpA=p.records.at(-2).id;cmpB=p.records.at(-1).id;}
+    const a=p.records.find(r=>r.id===cmpA),b=p.records.find(r=>r.id===cmpB);
+    const opts=sel=>[...p.records].reverse().map(r=>`<option value="${r.id}"${r.id===sel?" selected":""}>${dLabel(r.date)}</option>`).join("");
     const chg=KEYS.map(([k,n])=>{const x=a.key[k],y=b.key[k];if(x==null&&y==null)return "";const d=x!=null&&y!=null?y-x:null;return `<td>${n}</td><td>${x??"–"}</td><td>${y??"–"}</td><td class="${d>0?"chg-up":d<0?"chg-down":""}">${d==null?"":d>0?"+"+d:d}</td>`;}).filter(Boolean);
     const ai=new Set(a.plan.map(q=>q.id)),bi=new Set(b.plan.map(q=>q.id));
     const add=[...bi].filter(i=>!ai.has(i)).map(exName),rem=[...ai].filter(i=>!bi.has(i)).map(exName);
-    h+=`<div class="box"><h3>최근 두 기록 비교 <small>${esc(a.date)} → ${esc(b.date)}</small></h3>
-      ${chg.length?`<table class="stage"><thead><tr><th>평가</th><th>이전</th><th>최근</th><th>변화</th></tr></thead><tbody>${chg.map(c=>`<tr>${c}</tr>`).join("")}</tbody></table>`:`<p class="muted">비교할 평가 점수가 없습니다.</p>`}
-      <p style="margin:12px 0 0"><b class="chg-up">추가된 운동</b> ${add.length?esc(add.join(", ")):"없음"}<br><b class="chg-down">빠진 운동</b> ${rem.length?esc(rem.join(", ")):"없음"}</p></div>`;
+    h+=`<div class="box"><h3>두 기록 비교 <small>비교할 날짜를 골라 보세요</small></h3>
+      <div class="acts" style="margin-bottom:14px;align-items:flex-end">
+        <div class="f" style="max-width:170px"><label for="cmpA">기준이 되는 기록</label><select id="cmpA">${opts(cmpA)}</select></div>
+        <span class="muted" style="padding-bottom:9px">→</span>
+        <div class="f" style="max-width:170px"><label for="cmpB">비교할 기록</label><select id="cmpB">${opts(cmpB)}</select></div>
+        <button class="btn sm" id="cmpSwap" style="margin-bottom:5px">서로 바꾸기</button>
+      </div>
+      ${chg.length?`<table class="stage"><thead><tr><th>평가</th><th>${dLabel(a.date)}</th><th>${dLabel(b.date)}</th><th>변화</th></tr></thead><tbody>${chg.map(c=>`<tr>${c}</tr>`).join("")}</tbody></table>`:`<p class="muted">두 기록 모두에 들어 있는 평가 점수가 없습니다.</p>`}
+      <p style="margin:12px 0 0"><b class="chg-up">${dLabel(b.date)}에 새로 들어간 운동</b> ${add.length?esc(add.join(", ")):"없음"}<br><b class="chg-down">빠진 운동</b> ${rem.length?esc(rem.join(", ")):"없음"}</p></div>`;
   }
   h+=`<div class="box"><h3>처방 기록 <small>최근 것이 맨 위입니다</small></h3>${recs.map((r,ri)=>{
     const ks=KEYS.filter(([k])=>r.key[k]!=null);
@@ -3793,7 +3803,14 @@ function renderPM(){
     </div>`;}).join("")}</div>`;
   $("pmBody").innerHTML=h;
 }
-$("pmSel").onchange=()=>{pmSelected=$("pmSel").value;renderPM();};
+$("pmSel").onchange=()=>{pmSelected=$("pmSel").value;cmpA=cmpB=null;renderPM();};
+$("pmBody").addEventListener("change",e=>{
+  if(e.target.id==="cmpA"){cmpA=e.target.value;renderPM();}
+  else if(e.target.id==="cmpB"){cmpB=e.target.value;renderPM();}
+});
+$("pmBody").addEventListener("click",e=>{
+  if(e.target.id==="cmpSwap"){const t=cmpA;cmpA=cmpB;cmpB=t;renderPM();}
+});
 let perfRec=null;
 function openPerf(p,r){
   perfRec=r;
