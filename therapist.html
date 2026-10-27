@@ -163,6 +163,18 @@ dialog::backdrop{background:rgba(10,25,40,.45)}
 .stat.warn b{color:var(--danger)}
 .late{color:var(--danger);font-weight:700}
 .chg-up{color:var(--pri);font-weight:700}.chg-down{color:var(--danger);font-weight:700}
+table.list{width:100%;border-collapse:separate;border-spacing:0;font-size:13.5px}
+table.list th{text-align:left;font-size:12px;color:var(--sub);font-weight:600;padding:0 14px 9px;border-bottom:1px solid var(--line);white-space:nowrap}
+table.list td{padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:middle}
+table.list tbody tr:last-child td{border-bottom:none}
+table.list tbody tr:hover td{background:var(--bg)}
+table.list th:first-child,table.list td:first-child{padding-left:2px}
+table.list .nm{font-weight:700;font-size:14.5px;display:block}
+table.list .sub2{color:var(--sub);font-size:11.5px;display:block;margin-top:1px}
+table.list .dt{white-space:nowrap}
+table.list .acts-c{text-align:right;white-space:nowrap;padding-right:2px}
+table.list .acts-c .btn{margin-left:5px}
+table.list .none{color:#9AA7B4}
 .rec{border:1px solid var(--line);border-radius:12px;padding:13px 15px;margin-top:10px}
 .rec:first-of-type{border-color:var(--pri);box-shadow:0 0 0 1px var(--pri) inset}
 .rec-h{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
@@ -3624,8 +3636,14 @@ function renderDash(){
   const fw=$("dashWard").value,fo=$("dashOt").value;
   const rows=ps.filter(p=>(!q||(p.code+" "+(p.room||"")+" "+(p.ward||"")).toLowerCase().includes(q))&&(!fw||p.ward===fw)&&(!fo||p.therapist===fo))
     .sort((a,b)=>{const ra=latest(a)?.reeval||"9",rb=latest(b)?.reeval||"9";return ra.localeCompare(rb);});
-  $("dashList").innerHTML=rows.length?`<div style="overflow-x:auto"><table class="list"><thead><tr><th>가명</th><th>병동·병실</th><th>담당</th><th>마비측</th><th>마지막으로 뽑은 날</th><th>운동 개수</th><th>집에서 한 정도</th><th>다음 재평가</th><th></th></tr></thead><tbody>${rows.map(p=>{const r=latest(p);return `<tr><td><b>${esc(p.code)}</b></td><td>${esc([p.ward,p.room].filter(Boolean).join(" "))}</td><td>${esc(p.therapist||"")}</td><td>${esc(p.side)}</td><td>${r?esc(r.date):"–"}</td><td>${r?r.plan.length:"–"}</td><td style="white-space:nowrap">${r?perfBadge(r):"–"}</td><td class="${r&&r.reeval&&r.reeval<t?"late":""}">${r&&r.reeval?esc(r.reeval):"–"}</td>
-    <td style="white-space:nowrap"><button class="btn sm" data-pm="${p.id}">지난 기록 보기</button> <button class="btn sm" data-re="${p.id}">다시 평가하기</button> <button class="btn sm" data-again="${p.id}">지난 유인물 다시 뽑기</button></td></tr>`;}).join("")}</tbody></table></div>`
+  $("dashList").innerHTML=rows.length?`<div style="overflow-x:auto"><table class="list"><thead><tr><th>가명</th><th>병동·병실</th><th>담당</th><th>마지막 처방</th><th>집에서 한 정도</th><th>다음 재평가</th><th></th></tr></thead><tbody>${rows.map(p=>{const r=latest(p);return `<tr>
+    <td><span class="nm">${esc(p.code)}</span><span class="sub2">마비측 ${esc(p.side||"미입력")}</span></td>
+    <td>${esc([p.ward,p.room].filter(Boolean).join(" "))||`<span class="none">–</span>`}</td>
+    <td>${esc(p.therapist||"")||`<span class="none">–</span>`}</td>
+    <td class="dt">${r?`${dLabel(r.date)}<span class="sub2">운동 ${r.plan.length}개</span>`:`<span class="none">–</span>`}</td>
+    <td class="dt">${r?perfBadge(r):`<span class="none">–</span>`}</td>
+    <td class="dt ${r&&r.reeval&&r.reeval<t?"late":""}">${r&&r.reeval?dLabel(r.reeval):`<span class="none">–</span>`}</td>
+    <td class="acts-c"><button class="btn sm" data-pm="${p.id}">지난 기록 보기</button><button class="btn sm" data-re="${p.id}">다시 평가하기</button><button class="btn sm" data-again="${p.id}">유인물 다시 뽑기</button></td></tr>`;}).join("")}</tbody></table></div>`
     :`<div class="empty">${ps.length?"검색 결과가 없습니다.":"아직 저장된 환자가 없습니다. 위의 ‘처음 보는 환자 시작’을 누르고 유인물까지 뽑으면 여기에 쌓입니다."}</div>`;
 }
 $("dashQ").oninput=renderDash;$("dashWard").onchange=renderDash;$("dashOt").onchange=renderDash;
