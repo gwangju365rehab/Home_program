@@ -3637,7 +3637,8 @@ function trendSvg(vals,dates,max,color,w,h){
   const line=pts.length>1?`<path d="${d}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`:"";
   const tick=pts.map(([i])=>`<line x1="${X(i).toFixed(1)}" y1="${yb}" x2="${X(i).toFixed(1)}" y2="${yb+3}" stroke="#C3CEDA"/>`).join("");
   const dots=pts.map(([i,v],k)=>`<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="${k===pts.length-1?3.6:2.4}" fill="${color}"><title>${esc(dates[i])} · ${v}</title></circle>`).join("");
-  const md=i=>esc(String(dates[i]||"").slice(5));
+  const md=i=>{const m=String(dates[i]||"").match(/^\d{4}-(\d{2})-(\d{2})/);
+    return m?`${+m[1]}월 ${+m[2]}일`:esc(String(dates[i]||""));};
   const f=pts[0][0],l=pts.at(-1)[0];
   const lab=`<text x="${pL}" y="${h-7}" font-size="9.5" fill="#5C6A78">${md(f)}</text>`+
     (pts.length>1?`<text x="${w-pR}" y="${h-7}" font-size="9.5" fill="#5C6A78" text-anchor="end">${md(l)}</text>`:"");
@@ -3694,7 +3695,7 @@ function renderPM(){
       return `<div class="trend"><div class="th">${t.n}<small>${t.t}</small></div>
         ${trendSvg(vals,dts,t.max,t.c)}
         <div class="tv" style="color:${t.c}">${last}${d!=null?`<em class="${d>0?"chg-up":d<0?"chg-down":"muted"}">${d>0?"+"+d:d===0?"변화 없음":d}</em>`:""}</div>
-        <div class="tx">${got.length>1?`${first} → ${last} · `:""}${got.length}회 측정</div></div>`;
+        <div class="tx">${got.length>1?`처음 ${first} → 지금 ${last} · `:""}${got.length}번 쟀습니다</div></div>`;
     }).filter(Boolean).join("");
     h+=`<div class="box"><h3>기능 변화 추이 <small>처방할 때 입력한 평가 점수를 날짜순으로 그렸습니다</small></h3>
       ${cards?`<div class="trends">${cards}</div>`:`<p class="muted" style="margin:0">아직 그릴 평가 점수가 없습니다. 평가 입력 화면에서 BBS·FAC·후글-마이어·MMSE·MBI를 적으면 여기에 추이가 그려집니다.</p>`}</div>`;
