@@ -163,6 +163,28 @@ dialog::backdrop{background:rgba(10,25,40,.45)}
 .stat.warn b{color:var(--danger)}
 .late{color:var(--danger);font-weight:700}
 .chg-up{color:var(--pri);font-weight:700}.chg-down{color:var(--danger);font-weight:700}
+.trends{display:grid;grid-template-columns:repeat(auto-fill,minmax(216px,1fr));gap:12px}
+.trend{border:1px solid var(--line);border-radius:12px;padding:12px 14px 8px;background:#fff}
+.trend .th{font-weight:700;font-size:13.5px}
+.trend .th small{display:block;font-weight:400;color:var(--sub);font-size:11.5px;margin-top:1px}
+.trend .tv{font-size:24px;font-weight:700;line-height:1.1;margin-top:-4px}
+.trend .tv em{font-size:13px;font-style:normal;margin-left:4px}
+.trend .tx{color:var(--sub);font-size:11.5px}
+.pbar{display:grid;grid-template-columns:92px 1fr 128px;gap:10px;align-items:center;padding:5px 0;font-size:13px}
+.pbar .pt{height:12px;border-radius:7px;background:var(--bg);border:1px solid var(--line);overflow:hidden}
+.pbar .pt i{display:block;height:100%;background:var(--pri);border-radius:7px}
+.pbar .pt i.low{background:var(--danger)}.pbar .pt i.mid{background:var(--orange)}
+.pbar .pv{color:var(--sub);text-align:right}
+.mmtg{border-collapse:collapse;font-size:12.5px}
+.mmtg th{padding:4px 7px;color:var(--sub);font-weight:600;white-space:nowrap;text-align:center}
+.mmtg th.r{text-align:left}
+.mmtg td{padding:0;text-align:center}
+.mmtg td i{display:block;min-width:40px;padding:6px 4px;font-style:normal;font-weight:700;border-radius:6px;margin:2px}
+.mmtg td.rl{text-align:left;padding:0 7px;white-space:nowrap}
+.prow{display:grid;grid-template-columns:1fr 104px 148px;gap:8px;align-items:center;padding:5px 0;border-top:1px solid var(--line);font-size:13px}
+.prow select{padding:6px 8px;font-size:13px;width:100%}
+.prow.head{border-top:none;color:var(--sub);font-size:12px;font-weight:600}
+@media screen and (max-width:700px){.prow{grid-template-columns:1fr;gap:4px}.pbar{grid-template-columns:76px 1fr;}.pbar .pv{grid-column:1/-1;text-align:left}}
 @media screen and (max-width:820px){.stats{grid-template-columns:1fr 1fr}}
 </style>
 
@@ -179,6 +201,18 @@ dialog::backdrop{background:rgba(10,25,40,.45)}
   <div class="f"><label for="meSel">치료사</label><select id="meSel"></select></div>
   <div class="f" id="meNameWrap"><label for="meName">이름</label><input id="meName" placeholder="이름을 입력하세요"></div>
   <div class="acts" style="justify-content:flex-end;margin-top:12px"><button class="btn pri" id="meOk">시작하기</button></div>
+</dialog>
+<dialog id="dlgPerf" style="max-width:640px">
+  <h3 style="margin:0 0 4px">지난 홈프로그램 수행 기록</h3>
+  <p class="muted" style="margin:0 0 14px" id="perfHead"></p>
+  <div class="grid" style="grid-template-columns:1fr 1fr;gap:12px">
+    <div class="f"><label for="perfDays">수행한 날 <small class="muted">환자·보호자에게 물어본 값</small></label><input id="perfDays" type="number" min="0" max="31" placeholder="예: 5"></div>
+    <div class="f"><label for="perfOf">물어본 기간 (일)</label><input id="perfOf" type="number" min="1" max="31" value="7"></div>
+  </div>
+  <div class="sub" style="margin-top:4px">운동별 수행 <small class="muted">못 한 운동은 사유를 고르면 다음 처방에 참고로 남습니다</small></div>
+  <div id="perfList" style="max-height:38vh;overflow-y:auto"></div>
+  <div class="f" style="margin-top:12px"><label for="perfNote">한 줄 메모</label><input id="perfNote" placeholder="예: 어깨가 아파서 팔 들기만 쉬었다고 함"></div>
+  <div class="acts" style="justify-content:flex-end;margin-top:14px"><button class="btn" id="perfCancel">닫기</button><button class="btn pri" id="perfOk">수행 기록 저장</button></div>
 </dialog>
 <header class="top">
   <img id="brandLogo" alt="" hidden><div><h1>병동 홈프로그램 자판기</h1><div class="brandsub" id="brandSub"></div></div>
@@ -2886,10 +2920,23 @@ $("btnClear").onclick=()=>{document.querySelectorAll(FORMSEL).forEach(e=>{if(e.t
 const libById=id=>lib.find(e=>e.id===id);
 const needCarer=(e,x)=>e.carer||(e.pos==="stand"&&standTier(x)===1);
 const carerLabel=x=>x.f.care==="team"?"간병인·간호사와 함께":"보호자와 함께";
+// 같은 가명의 마지막 수행 기록을 가져와 이번 선정에 참고로 보여줍니다.
+function lastPerfBox(code){
+  code=(code||"").trim();if(!code)return "";
+  const p=pdb.patients.find(q=>q.code===code);if(!p)return "";
+  const r=[...p.records].reverse().find(q=>q.perf);if(!r)return "";
+  const iss=perfIssues(r),dr=dayRate(r),er=perfRate(r);
+  const sum=[dr!=null?`지난 ${r.perf.of}일 중 ${r.perf.days}일 수행`:"",er!=null?`운동 수행률 ${Math.round(er*100)}%`:""].filter(Boolean).join(" · ");
+  return `<div class="box" style="border-left:4px solid var(--amber)"><h3>지난 홈프로그램은 이렇게 했습니다 <small>${esc(r.date)} 처방</small></h3>
+    <p style="margin:0 0 ${iss.length||r.perf.note?"8px":"0"}">${esc(sum||"수행 기록 있음")}</p>
+    ${iss.length?`<p style="margin:0"><b class="chg-down">못 하거나 일부만 한 운동</b><br>${iss.map(i=>`${esc(exName(i.id))} <span class="muted">(${PFS[i.st]}${i.why?" · "+esc(i.why):""})</span>`).join("<br>")}
+      <br><span class="muted">같은 운동이 또 들어갔다면 아래에서 다른 운동으로 바꾸거나 빼세요.</span></p>`:`<p class="muted" style="margin:0">처방한 운동을 모두 했습니다.</p>`}
+    ${r.perf.note?`<p class="muted" style="margin:8px 0 0">메모 · ${esc(r.perf.note)}</p>`:""}</div>`;
+}
 function renderReview(){
   if(!planInput){$("reviewBody").innerHTML=`<div class="box empty">1번 화면에서 평가를 입력하고 '홈프로그램 뽑기'를 누르세요.</div>`;$("addSel").innerHTML="";return;}
   const x=planInput,ti=tierInfo(x);
-  let h=`<div class="box"><div class="tier t${ti.c}"><b>${ti.t}</b><span class="muted">${esc(x.name||"이름 없음")} · 마비측 ${esc(x.side||"미입력")} · 운동 ${plan.length}개</span></div>${x.empty.length?`<p class="muted" style="margin:10px 0 0">운동이 나오지 않은 영역: ${x.empty.map(o=>`${o.d.n}(${esc(o.why)})`).join(", ")} — 평가 값을 확인하거나 아래에서 직접 추가하세요.</p>`:""}</div>`;
+  let h=lastPerfBox(x.name)+`<div class="box"><div class="tier t${ti.c}"><b>${ti.t}</b><span class="muted">${esc(x.name||"이름 없음")} · 마비측 ${esc(x.side||"미입력")} · 운동 ${plan.length}개</span></div>${x.empty.length?`<p class="muted" style="margin:10px 0 0">운동이 나오지 않은 영역: ${x.empty.map(o=>`${o.d.n}(${esc(o.why)})`).join(", ")} — 평가 값을 확인하거나 아래에서 직접 추가하세요.</p>`:""}</div>`;
   for(const d of DOMS){
     const items=plan.map((p,i)=>({p,i,e:libById(p.id)})).filter(o=>o.e.dom===d.k);if(!items.length)continue;
     h+=`<div class="box dom" style="--c:${d.c}"><h3><span class="dot" style="background:${d.c}"></span>${d.n}<small>${d.g}</small>${recDoms[d.k]?`<span class="tag rec">평가값으로 추천</span>`:""}</h3>`+items.map(({p,i,e})=>{const why=check(e,x);
@@ -3555,7 +3602,7 @@ function renderDash(){
   const fw=$("dashWard").value,fo=$("dashOt").value;
   const rows=ps.filter(p=>(!q||(p.code+" "+(p.room||"")+" "+(p.ward||"")).toLowerCase().includes(q))&&(!fw||p.ward===fw)&&(!fo||p.therapist===fo))
     .sort((a,b)=>{const ra=latest(a)?.reeval||"9",rb=latest(b)?.reeval||"9";return ra.localeCompare(rb);});
-  $("dashList").innerHTML=rows.length?`<div style="overflow-x:auto"><table class="list"><thead><tr><th>가명</th><th>병동·병실</th><th>담당</th><th>마비측</th><th>최근 처방</th><th>운동 수</th><th>재평가 예정</th><th></th></tr></thead><tbody>${rows.map(p=>{const r=latest(p);return `<tr><td><b>${esc(p.code)}</b></td><td>${esc([p.ward,p.room].filter(Boolean).join(" "))}</td><td>${esc(p.therapist||"")}</td><td>${esc(p.side)}</td><td>${r?esc(r.date):"–"}</td><td>${r?r.plan.length:"–"}</td><td class="${r&&r.reeval&&r.reeval<t?"late":""}">${r&&r.reeval?esc(r.reeval):"–"}</td>
+  $("dashList").innerHTML=rows.length?`<div style="overflow-x:auto"><table class="list"><thead><tr><th>가명</th><th>병동·병실</th><th>담당</th><th>마비측</th><th>최근 처방</th><th>운동 수</th><th>지난 수행</th><th>재평가 예정</th><th></th></tr></thead><tbody>${rows.map(p=>{const r=latest(p);return `<tr><td><b>${esc(p.code)}</b></td><td>${esc([p.ward,p.room].filter(Boolean).join(" "))}</td><td>${esc(p.therapist||"")}</td><td>${esc(p.side)}</td><td>${r?esc(r.date):"–"}</td><td>${r?r.plan.length:"–"}</td><td style="white-space:nowrap">${r?perfBadge(r):"–"}</td><td class="${r&&r.reeval&&r.reeval<t?"late":""}">${r&&r.reeval?esc(r.reeval):"–"}</td>
     <td style="white-space:nowrap"><button class="btn sm" data-pm="${p.id}">기록</button> <button class="btn sm" data-re="${p.id}">재평가</button> <button class="btn sm" data-again="${p.id}">같은 처방 출력</button></td></tr>`;}).join("")}</tbody></table></div>`
     :`<div class="empty">${ps.length?"검색 결과가 없습니다.":"아직 저장된 환자 기록이 없습니다. 평가 입력 → 홈프로그램 뽑기 → 출력하면 기록이 쌓입니다."}</div>`;
 }
@@ -3571,6 +3618,59 @@ $("dashList").onclick=e=>{const b=e.target.closest("button");if(!b)return;const 
 // 환자 관리
 let pmSelected=null;
 const KEYS=[["bbs","BBS"],["fac","FAC"],["fmaT","FMA-UE"],["mmse","MMSE"],["mbi","MBI"]];
+
+/* ===== 기능 변화 추이 ===== */
+const TRK=[
+  {k:"fmaT",n:"FMA-UE",t:"후글-마이어 상지 (0–66)",max:66,c:"#2F5F98"},
+  {k:"bbs", n:"BBS",   t:"버그 균형 (0–56)",       max:56,c:"#F08200"},
+  {k:"fac", n:"FAC",   t:"보행 등급 (0–5)",        max:5, c:"#4E7D32"},
+  {k:"mmse",n:"MMSE",  t:"인지 (0–30)",            max:30,c:"#B08900"},
+  {k:"mbi", n:"MBI",   t:"일상생활 (0–100)",       max:100,c:"#8A6D3B"},
+];
+// 값 묶음을 작은 꺾은선 그림으로. 값이 없는 날짜는 건너뜁니다.
+function trendSvg(vals,max,color,w,h){
+  w=w||216;h=h||62;const pL=3,pR=3,pT=9,pB=7;
+  const n=vals.length,iw=w-pL-pR,ih=h-pT-pB;
+  const X=i=>n<2?pL+iw/2:pL+iw*i/(n-1);
+  const Y=v=>pT+ih*(1-Math.max(0,Math.min(1,v/max)));
+  const pts=vals.map((v,i)=>[i,v]).filter(([,v])=>v!=null);
+  const base=`<line x1="${pL}" y1="${h-pB}" x2="${w-pR}" y2="${h-pB}" stroke="#D9E1EA"/>`;
+  if(!pts.length)return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="${h}">${base}</svg>`;
+  const d=pts.map(([i,v],k)=>`${k?"L":"M"}${X(i).toFixed(1)} ${Y(v).toFixed(1)}`).join(" ");
+  const area=pts.length>1?`<path d="${d} L${X(pts.at(-1)[0]).toFixed(1)} ${h-pB} L${X(pts[0][0]).toFixed(1)} ${h-pB} Z" fill="${color}" opacity=".10"/>`:"";
+  const line=pts.length>1?`<path d="${d}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`:"";
+  const dots=pts.map(([i,v],k)=>`<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="${k===pts.length-1?3.6:2.2}" fill="${color}"/>`).join("");
+  return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="${h}" aria-hidden="true">${base}${area}${line}${dots}</svg>`;
+}
+
+/* ===== 수행 기록 ===== */
+const PFS={full:"다 함",part:"일부만",none:"못 함"};
+const PFR=["아파서","너무 어려워서","방법을 잊어서","시간이 없어서","도와줄 사람이 없어서","하고 싶지 않아서"];
+const pfScore=v=>v==="full"?1:v==="part"?0.5:0;
+function perfRate(r){ // 운동 수행률 0~1 (수행 기록이 없으면 null)
+  if(!r.perf||!r.perf.items)return null;
+  const ids=r.plan.map(q=>q.id).filter(id=>r.perf.items[id]);
+  if(!ids.length)return null;
+  return ids.reduce((a,id)=>a+pfScore(r.perf.items[id]),0)/ids.length;
+}
+const dayRate=r=>r.perf&&r.perf.days!=null&&r.perf.of?Math.min(1,r.perf.days/r.perf.of):null;
+const pctCls=v=>v==null?"":v<0.4?" low":v<0.7?" mid":"";
+function perfBadge(r){
+  if(!r.perf)return `<span class="muted">미입력</span>`;
+  const d=dayRate(r),e=perfRate(r);
+  return [r.perf.days!=null?`${r.perf.days}/${r.perf.of}일`:"",e!=null?`운동 ${Math.round(e*100)}%`:""].filter(Boolean).join(" · ")||"입력됨";
+}
+// 다음 처방에 참고할 "못 한 운동"
+function perfIssues(r){
+  if(!r.perf||!r.perf.items)return [];
+  return r.plan.map(q=>q.id).filter(id=>r.perf.items[id]&&r.perf.items[id]!=="full")
+    .map(id=>({id,st:r.perf.items[id],why:(r.perf.reasons||{})[id]||""}));
+}
+
+/* ===== 부위별 MMT 변화 ===== */
+const MMTP=[["Sh","어깨"],["El","팔꿈치"],["Wr","손목"],["Gr","손 쥐기"],["Hip","고관절"],["Kn","무릎"],["An","발목"]];
+const MMTC=["#F3C9D0","#F7DCC6","#FBEFC9","#E6F0D4","#CBE4B2","#AED992"];
+const mmtOf=(r,p)=>{const v=(r.form||{})["i_m"+p];return v===""||v==null?null:Number(v);};
 function renderPM(){
   if(!$("pmSel"))return;
   const ps=[...pdb.patients].sort((a,b)=>a.code.localeCompare(b.code));
@@ -3581,6 +3681,45 @@ function renderPM(){
   const p=ps.find(x=>x.id===pmSelected),recs=[...p.records].reverse();
   $("pmInfo").textContent=[p.ward&&`${p.ward} ${p.room||""}`.trim(),p.therapist&&`담당 ${p.therapist}`,`마비측 ${p.side||"미입력"}`,`기록 ${p.records.length}건`].filter(Boolean).join(" · ");
   let h="";
+  // --- 기능 변화 추이 ---
+  if(p.records.length>=1){
+    const dts=p.records.map(r=>r.date);
+    const cards=TRK.map(t=>{
+      const vals=p.records.map(r=>r.key[t.k]??null);
+      const got=vals.filter(v=>v!=null);
+      if(!got.length)return "";
+      const last=got.at(-1),first=got[0],d=got.length>1?last-first:null;
+      const li=vals.map((v,i)=>v!=null?i:-1).filter(i=>i>=0);
+      return `<div class="trend"><div class="th">${t.n}<small>${t.t}</small></div>
+        ${trendSvg(vals,t.max,t.c)}
+        <div class="tv" style="color:${t.c}">${last}${d!=null?`<em class="${d>0?"chg-up":d<0?"chg-down":"muted"}">${d>0?"+"+d:d===0?"변화 없음":d}</em>`:""}</div>
+        <div class="tx">${esc(dts[li[0]])}${li.length>1?" → "+esc(dts[li.at(-1)]):""} · ${got.length}회 측정</div></div>`;
+    }).filter(Boolean).join("");
+    h+=`<div class="box"><h3>기능 변화 추이 <small>처방할 때 입력한 평가 점수를 날짜순으로 그렸습니다</small></h3>
+      ${cards?`<div class="trends">${cards}</div>`:`<p class="muted" style="margin:0">아직 그릴 평가 점수가 없습니다. 평가 입력 화면에서 BBS·FAC·후글-마이어·MMSE·MBI를 적으면 여기에 추이가 그려집니다.</p>`}</div>`;
+    // --- 부위별 근력(MMT) ---
+    const cols=p.records.slice(-7),rows=MMTP.filter(([p2])=>cols.some(r=>mmtOf(r,p2)!=null));
+    if(rows.length)h+=`<div class="box"><h3>부위별 근력(MMT) 변화 <small>0 Zero ~ 5 Normal · 마비측</small></h3>
+      <div style="overflow-x:auto"><table class="mmtg"><thead><tr><th class="r">부위</th>${cols.map(r=>`<th>${esc(r.date.slice(5))}</th>`).join("")}<th>변화</th></tr></thead><tbody>
+      ${rows.map(([k,n])=>{const vs=cols.map(r=>mmtOf(r,k)),got=vs.filter(v=>v!=null),d=got.length>1?got.at(-1)-got[0]:null;
+        return `<tr><td class="rl">${n}</td>${vs.map(v=>`<td><i style="background:${v==null?"#F2F5F9":MMTC[v]};color:${v==null?"#9AA7B4":"#17212B"}">${v==null?"–":v}</i></td>`).join("")}
+          <td class="rl ${d>0?"chg-up":d<0?"chg-down":"muted"}">${d==null?"–":d>0?"+"+d:d===0?"–":d}</td></tr>`;}).join("")}
+      </tbody></table></div></div>`;
+    // --- 홈프로그램 수행률 ---
+    const done=p.records.filter(r=>r.perf);
+    let ph=`<div class="box"><h3>홈프로그램 수행률 <small>다음 치료 때 환자·보호자에게 물어 입력합니다</small></h3>`;
+    if(!done.length)ph+=`<p class="muted" style="margin:0">아직 수행 기록이 없습니다. 아래 처방 기록에서 <b>수행 입력</b>을 누르세요.</p>`;
+    else{
+      ph+=p.records.filter(r=>r.perf).map(r=>{const dr=dayRate(r),er=perfRate(r);
+        return `<div class="pbar"><span class="pl">${esc(r.date.slice(5))}</span>
+          <div class="pt"><i class="${pctCls(dr??er)}" style="width:${Math.round((dr??er??0)*100)}%"></i></div>
+          <span class="pv">${esc(perfBadge(r))}</span></div>`;}).join("");
+      const lastP=done.at(-1),iss=perfIssues(lastP);
+      if(iss.length)ph+=`<p style="margin:12px 0 0"><b class="chg-down">지난번에 못 한 운동</b><br>${iss.map(i=>`${esc(exName(i.id))} <span class="muted">(${PFS[i.st]}${i.why?" · "+esc(i.why):""})</span>`).join("<br>")}</p>`;
+      if(lastP.perf.note)ph+=`<p class="muted" style="margin:10px 0 0">메모 · ${esc(lastP.perf.note)}</p>`;
+    }
+    h+=ph+`</div>`;
+  }
   if(p.records.length>=2){
     const a=p.records.at(-2),b=p.records.at(-1);
     const chg=KEYS.map(([k,n])=>{const x=a.key[k],y=b.key[k];if(x==null&&y==null)return "";const d=x!=null&&y!=null?y-x:null;return `<td>${n}</td><td>${x??"–"}</td><td>${y??"–"}</td><td class="${d>0?"chg-up":d<0?"chg-down":""}">${d==null?"":d>0?"+"+d:d}</td>`;}).filter(Boolean);
@@ -3590,12 +3729,47 @@ function renderPM(){
       ${chg.length?`<table class="stage"><thead><tr><th>평가</th><th>이전</th><th>최근</th><th>변화</th></tr></thead><tbody>${chg.map(c=>`<tr>${c}</tr>`).join("")}</tbody></table>`:`<p class="muted">비교할 평가 점수가 없습니다.</p>`}
       <p style="margin:12px 0 0"><b class="chg-up">추가된 운동</b> ${add.length?esc(add.join(", ")):"없음"}<br><b class="chg-down">빠진 운동</b> ${rem.length?esc(rem.join(", ")):"없음"}</p></div>`;
   }
-  h+=`<div class="box"><h3>처방 기록</h3><div style="overflow-x:auto"><table class="list"><thead><tr><th>처방일</th>${KEYS.map(k=>`<th>${k[1]}</th>`).join("")}<th>운동</th><th>재평가 예정</th><th></th></tr></thead><tbody>${recs.map(r=>`<tr><td><b>${esc(r.date)}</b></td>${KEYS.map(([k])=>`<td>${r.key[k]??"–"}</td>`).join("")}<td style="max-width:320px">${esc(r.plan.map(q=>exName(q.id)).join(", "))}</td><td>${esc(r.reeval||"–")}</td>
-    <td style="white-space:nowrap"><button class="btn sm" data-load="${r.id}">평가값 불러오기</button> <button class="btn sm" data-again="${r.id}">다시 출력</button> <button class="btn sm danger" data-rdel="${r.id}">삭제</button></td></tr>`).join("")}</tbody></table></div></div>`;
+  h+=`<div class="box"><h3>처방 기록</h3><div style="overflow-x:auto"><table class="list"><thead><tr><th>처방일</th>${KEYS.map(k=>`<th>${k[1]}</th>`).join("")}<th>운동</th><th>수행</th><th>재평가 예정</th><th></th></tr></thead><tbody>${recs.map(r=>`<tr><td><b>${esc(r.date)}</b></td>${KEYS.map(([k])=>`<td>${r.key[k]??"–"}</td>`).join("")}<td style="max-width:300px">${esc(r.plan.map(q=>exName(q.id)).join(", "))}</td><td style="white-space:nowrap;padding-right:18px">${perfBadge(r)}</td><td>${esc(r.reeval||"–")}</td>
+    <td style="white-space:nowrap"><button class="btn sm${r.perf?"":" pri"}" data-perf="${r.id}">수행 입력</button> <button class="btn sm" data-load="${r.id}">평가값 불러오기</button> <button class="btn sm" data-again="${r.id}">다시 출력</button> <button class="btn sm danger" data-rdel="${r.id}">삭제</button></td></tr>`).join("")}</tbody></table></div></div>`;
   $("pmBody").innerHTML=h;
 }
 $("pmSel").onchange=()=>{pmSelected=$("pmSel").value;renderPM();};
-$("pmBody").onclick=e=>{const b=e.target.closest("button");if(!b)return;const p=pdb.patients.find(x=>x.id===pmSelected);if(!p)return;const rid=b.dataset.load||b.dataset.again||b.dataset.rdel;const r=p.records.find(x=>x.id===rid);if(!r)return;
+let perfRec=null;
+function openPerf(p,r){
+  perfRec=r;
+  $("perfHead").textContent=`${p.code} · ${r.date} 처방 (운동 ${r.plan.length}개)`;
+  const pf=r.perf||{};
+  $("perfDays").value=pf.days??"";
+  $("perfOf").value=pf.of??7;
+  $("perfNote").value=pf.note||"";
+  const items=pf.items||{},rs=pf.reasons||{};
+  $("perfList").innerHTML=`<div class="prow head"><div>운동</div><div>수행</div><div>못 한 이유</div></div>`+
+    r.plan.map(q=>{const st=items[q.id]||"full";
+      return `<div class="prow"><div>${esc(exName(q.id))}</div>
+        <select data-pf="${q.id}">${Object.entries(PFS).map(([v,n])=>`<option value="${v}"${v===st?" selected":""}>${n}</option>`).join("")}</select>
+        <select data-pr="${q.id}"${st==="full"?" disabled":""}><option value="">이유 선택</option>${PFR.map(n=>`<option${rs[q.id]===n?" selected":""}>${n}</option>`).join("")}</select></div>`;}).join("");
+  $("dlgPerf").showModal();
+}
+$("perfList").addEventListener("change",e=>{const id=e.target.dataset.pf;if(!id)return;
+  const sel=$("perfList").querySelector(`[data-pr="${id}"]`);
+  sel.disabled=e.target.value==="full";if(sel.disabled)sel.value="";});
+$("perfCancel").onclick=()=>$("dlgPerf").close();
+$("perfOk").onclick=async()=>{
+  const r=perfRec;if(!r)return;
+  const p=pdb.patients.find(x=>x.records.some(q=>q.id===r.id));if(!p)return;
+  const items={},reasons={};
+  $("perfList").querySelectorAll("[data-pf]").forEach(sel=>{items[sel.dataset.pf]=sel.value;});
+  $("perfList").querySelectorAll("[data-pr]").forEach(sel=>{if(sel.value)reasons[sel.dataset.pr]=sel.value;});
+  r.perf={days:nOrNull($("perfDays").value),of:Number($("perfOf").value||7),items,reasons,note:$("perfNote").value.trim(),by:me.name||"",at:new Date().toISOString()};
+  r.savedAt=new Date().toISOString();           // 다른 PC와 합칠 때 이 내용이 최신본이 되도록
+  p.updatedAt=r.savedAt;
+  $("dlgPerf").close();
+  const ok=await persistP(p);
+  renderPM();renderDash();
+  toast(ok?`${p.code} · ${r.date} 수행 기록을 저장했습니다.`:"수행 기록을 저장하지 못했습니다.",ok?0:1);
+};
+$("pmBody").onclick=e=>{const b=e.target.closest("button");if(!b)return;const p=pdb.patients.find(x=>x.id===pmSelected);if(!p)return;const rid=b.dataset.load||b.dataset.again||b.dataset.rdel||b.dataset.perf;const r=p.records.find(x=>x.id===rid);if(!r)return;
+  if(b.dataset.perf){openPerf(p,r);return;}
   if(b.dataset.load){restoreForm(r.form);$("i_date").value=today();$("i_reeval").value="";refresh();go("input");toast(`${p.code} · ${r.date} 평가값을 불러왔습니다.`);}
   if(b.dataset.again)againFrom(p,r);
   if(b.dataset.rdel)armed(b,"정말 삭제?",async()=>{p.records=p.records.filter(x=>x.id!==rid);p.updatedAt=new Date().toISOString();p.deletedIds=[...(p.deletedIds||[]),rid];await persistP(p);renderPM();toast("기록을 삭제했습니다.");});};
