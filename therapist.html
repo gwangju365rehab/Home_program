@@ -163,6 +163,17 @@ dialog::backdrop{background:rgba(10,25,40,.45)}
 .stat.warn b{color:var(--danger)}
 .late{color:var(--danger);font-weight:700}
 .chg-up{color:var(--pri);font-weight:700}.chg-down{color:var(--danger);font-weight:700}
+.rec{border:1px solid var(--line);border-radius:12px;padding:13px 15px;margin-top:10px}
+.rec:first-of-type{border-color:var(--pri);box-shadow:0 0 0 1px var(--pri) inset}
+.rec-h{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
+.rec-h>b{font-size:15.5px}
+.rec-h .recb{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;align-self:center}
+.rec-k{margin-top:9px;font-size:12.5px;color:var(--sub);display:flex;gap:16px;flex-wrap:wrap}
+.rec-k b{color:var(--ink);font-size:15px;font-weight:700;margin-left:3px}
+.rec-d{margin-top:9px;font-size:13px}
+.rec-d summary{cursor:pointer;color:var(--pri);width:fit-content;list-style-position:inside}
+.rec-d .exs{margin-top:7px;color:var(--sub);line-height:1.8}
+@media screen and (max-width:700px){.rec-h .recb{margin-left:0;width:100%}}
 .trends{display:grid;grid-template-columns:repeat(auto-fill,minmax(216px,1fr));gap:12px}
 .trend{border:1px solid var(--line);border-radius:12px;padding:12px 14px 8px;background:#fff}
 .trend .th{font-weight:700;font-size:13.5px}
@@ -3614,6 +3625,7 @@ let pmSelected=null;
 const KEYS=[["bbs","BBS"],["fac","FAC"],["fmaT","FMA-UE"],["mmse","MMSE"],["mbi","MBI"]];
 
 /* ===== 기능 변화 추이 ===== */
+const dFull=d=>{const m=String(d||"").match(/^(\d{4})-(\d{2})-(\d{2})/);return m?`${m[1]}년 ${+m[2]}월 ${+m[3]}일`:esc(String(d||""));};
 const dLabel=d=>{const m=String(d||"").match(/^\d{4}-(\d{2})-(\d{2})/);return m?`${+m[1]}월 ${+m[2]}일`:esc(String(d||""));};
 const TRK=[
   {k:"fmaT",n:"FMA-UE",t:"후글-마이어 상지 (0–66)",max:66,c:"#2F5F98"},
@@ -3731,8 +3743,19 @@ function renderPM(){
       ${chg.length?`<table class="stage"><thead><tr><th>평가</th><th>이전</th><th>최근</th><th>변화</th></tr></thead><tbody>${chg.map(c=>`<tr>${c}</tr>`).join("")}</tbody></table>`:`<p class="muted">비교할 평가 점수가 없습니다.</p>`}
       <p style="margin:12px 0 0"><b class="chg-up">추가된 운동</b> ${add.length?esc(add.join(", ")):"없음"}<br><b class="chg-down">빠진 운동</b> ${rem.length?esc(rem.join(", ")):"없음"}</p></div>`;
   }
-  h+=`<div class="box"><h3>처방 기록</h3><div style="overflow-x:auto"><table class="list"><thead><tr><th>처방일</th>${KEYS.map(k=>`<th>${k[1]}</th>`).join("")}<th>운동</th><th>수행</th><th>재평가 예정</th><th></th></tr></thead><tbody>${recs.map(r=>`<tr><td><b>${esc(r.date)}</b></td>${KEYS.map(([k])=>`<td>${r.key[k]??"–"}</td>`).join("")}<td style="max-width:300px">${esc(r.plan.map(q=>exName(q.id)).join(", "))}</td><td style="white-space:nowrap;padding-right:18px">${perfBadge(r)}</td><td>${esc(r.reeval||"–")}</td>
-    <td style="white-space:nowrap"><button class="btn sm${r.perf?"":" pri"}" data-perf="${r.id}">수행 입력</button> <button class="btn sm" data-load="${r.id}">평가값 불러오기</button> <button class="btn sm" data-again="${r.id}">다시 출력</button> <button class="btn sm danger" data-rdel="${r.id}">삭제</button></td></tr>`).join("")}</tbody></table></div></div>`;
+  h+=`<div class="box"><h3>처방 기록 <small>최근 것이 맨 위입니다</small></h3>${recs.map((r,ri)=>{
+    const ks=KEYS.filter(([k])=>r.key[k]!=null);
+    return `<div class="rec">
+      <div class="rec-h"><b>${dFull(r.date)}</b>
+        ${ri===0?`<span class="tag rec">가장 최근</span>`:""}
+        <span class="muted">운동 ${r.plan.length}개</span>
+        ${r.perf?`<span class="muted">집에서 ${perfBadge(r)}</span>`:`<span class="muted">수행 미입력</span>`}
+        ${r.reeval?`<span class="muted">재평가 ${dLabel(r.reeval)}</span>`:""}
+        <span class="recb"><button class="btn sm${r.perf?"":" pri"}" data-perf="${r.id}">수행 입력</button><button class="btn sm" data-load="${r.id}">평가값 불러오기</button><button class="btn sm" data-again="${r.id}">다시 출력</button><button class="btn sm danger" data-rdel="${r.id}">삭제</button></span>
+      </div>
+      ${ks.length?`<div class="rec-k">${ks.map(([k,n])=>`<span>${n}<b>${r.key[k]}</b></span>`).join("")}</div>`:""}
+      <details class="rec-d"><summary>운동 ${r.plan.length}개 보기</summary><div class="exs">${esc(r.plan.map(q=>exName(q.id)).join(" · "))}</div></details>
+    </div>`;}).join("")}</div>`;
   $("pmBody").innerHTML=h;
 }
 $("pmSel").onchange=()=>{pmSelected=$("pmSel").value;renderPM();};
