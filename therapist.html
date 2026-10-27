@@ -189,12 +189,6 @@ dialog::backdrop{background:rgba(10,25,40,.45)}
 </style>
 
 </head>
-<script>
-(function(){ // 입구 페이지에서 비밀번호를 넣은 경우에만 열립니다
-  try{ if(localStorage.getItem("homeprog_gate_t"))return; }catch(e){ return; }
-  location.replace("index.html?next=therapist");
-})();
-</script>
 <body>
 <dialog id="dlgMe"><h3 style="margin:0 0 6px">치료사 확인</h3>
   <p class="muted" style="margin:0 0 12px">처방 기록에 담당 치료사로 남습니다. 이 컴퓨터에 저장되며 언제든 바꿀 수 있습니다.</p>

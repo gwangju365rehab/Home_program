@@ -37,49 +37,18 @@ footer{margin-top:26px;color:var(--sub);font-size:12.5px;text-align:center;line-
 <h1>병동 홈프로그램 자판기</h1>
 <p class="sub">기능평가 결과로 병동에서 할 홈프로그램을 뽑아 유인물과 QR로 전달합니다</p>
 <div class="cards">
-  <button class="card" style="--c:var(--pri)" data-go="therapist"><b>치료사용</b><span>평가 입력, 운동 선정, 유인물 출력, 환자 기록 관리</span><span class="lock">비밀번호 필요</span></button>
+  <button class="card" style="--c:var(--pri)" data-go="therapist"><b>치료사용</b><span>평가 입력, 운동 선정, 유인물 출력, 환자 기록 관리</span></button>
   <button class="card" style="--c:var(--ok)" data-go="patient"><b>환자용</b><span>처방받은 운동 보기와 수행 체크. 보통은 유인물의 QR로 열립니다</span></button>
-  <button class="card" style="--c:var(--orange)" data-go="admin"><b>관리자용</b><span>운동 라이브러리 편집, 유인물 설정, 근거표</span><span class="lock">비밀번호 필요</span></button>
+  <button class="card" style="--c:var(--orange)" data-go="admin"><b>관리자용</b><span>운동 라이브러리 편집, 유인물 설정, 근거표</span></button>
 </div>
 <footer>환자 정보는 이 사이트에 저장되지 않습니다. 병원 PC 또는 병원 공유 폴더에만 저장됩니다.<br>광주365재활병원</footer>
 
-<dialog id="dlg">
-  <h2 id="dlgTitle">비밀번호</h2>
-  <p id="dlgSub"></p>
-  <input type="password" id="pw" autocomplete="current-password" placeholder="비밀번호">
-  <div class="err" id="err">비밀번호가 맞지 않습니다.</div>
-  <div class="row"><button class="btn" id="cancel">취소</button><button class="btn pri" id="ok">들어가기</button></div>
-</dialog>
 
 <script>
-const $=id=>document.getElementById(id);
-// 기본 비밀번호 (관리자 페이지에서 바꾸면 library.json의 값이 우선합니다)
-let PW={t:"21eb5d09266b3ccbdcfa9346df9fdeb8a45b109e1b3a7a1271d7f54e865a765c",a:"c4b03d0819930085257e13181af316e75ad1c23b256ad4b0f988a8f8c55f68c3"};
-(async()=>{try{const r=await fetch("library.json",{cache:"no-store"});if(!r.ok)return;const j=await r.json();
-  if(j&&j.set){if(j.set.pwT)PW.t=j.set.pwT;if(j.set.pwA)PW.a=j.set.pwA;}}catch{}})();
-async function sha(t){const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode("hp:"+t));
-  return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("");}
-const PAGE={therapist:{file:"therapist.html",key:"homeprog_gate_t",pw:"t",name:"치료사용"},
-            admin:{file:"admin.html",key:"homeprog_gate_a",pw:"a",name:"관리자용"}};
-let pending=null;
-function open_(p){location.href=p.file;}
-document.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>{
-  const k=b.dataset.go;
-  if(k==="patient"){location.href="patient.html";return;}
-  const p=PAGE[k];
-  try{if(localStorage.getItem(p.key)){open_(p);return;}}catch{}
-  pending=p;$("dlgTitle").textContent=p.name+" 비밀번호";$("dlgSub").textContent="처음 한 번만 입력하면 이 컴퓨터에서는 다시 묻지 않습니다.";
-  $("pw").value="";$("err").style.display="none";$("dlg").showModal();$("pw").focus();
-});
-$("cancel").onclick=()=>$("dlg").close();
-$("ok").onclick=async()=>{
-  const v=$("pw").value;
-  if(await sha(v)===PW[pending.pw]){try{localStorage.setItem(pending.key,"1");}catch{}$("dlg").close();open_(pending);}
-  else{$("err").style.display="block";$("pw").select();}
-};
-$("pw").addEventListener("keydown",e=>{if(e.key==="Enter")$("ok").click();});
-// 비밀번호 없이 치료사·관리자 페이지에 바로 들어오면 여기로 돌아옵니다
-const next=new URLSearchParams(location.search).get("next");
-if(next&&PAGE[next])setTimeout(()=>document.querySelector(`[data-go="${next}"]`).click(),200);
+// 비밀번호 없이 바로 들어갑니다. 환자 기록은 이 사이트가 아니라 병원 PC 폴더에만 저장됩니다.
+const FILE={therapist:"therapist.html", patient:"patient.html", admin:"admin.html"};
+document.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>{location.href=FILE[b.dataset.go];});
+const next=new URLSearchParams(location.search).get("next");   // 예전 주소로 들어온 경우
+if(FILE[next])location.replace(FILE[next]);
 </script>
 </body></html>

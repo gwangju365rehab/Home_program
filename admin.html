@@ -154,12 +154,6 @@ details.domg .body{display:flex;gap:8px 10px;flex-wrap:wrap;padding:0 14px 12px}
 </style>
 <style>.warnbar{background:var(--amber-soft);border-bottom:1px solid #EAD3A6;color:#6B4A10;padding:8px 20px;font-size:13px}</style>
 </head>
-<script>
-(function(){ // 입구 페이지에서 비밀번호를 넣은 경우에만 열립니다
-  try{ if(localStorage.getItem("homeprog_gate_a"))return; }catch(e){ return; }
-  location.replace("index.html?next=admin");
-})();
-</script>
 <body>
 <header class="top"><img id="brandLogo" alt=""><div><h1>홈프로그램 관리자 페이지</h1><div class="brandsub" id="brandSub"></div></div>
 <nav class="steps"><button class="step on" data-t="set">유인물 설정</button><button class="step" data-t="lib">운동 라이브러리</button><button class="step" data-t="ev">근거표</button></nav></header>
@@ -179,8 +173,6 @@ details.domg .body{display:flex;gap:8px 10px;flex-wrap:wrap;padding:0 14px 12px}
     <div class="f w4"><label>치료사 명단 <small class="muted">치료사용 화면에서 담당자를 고를 때 나옵니다</small></label>
       <div id="staffBox"></div>
       <div class="acts" style="margin-top:8px"><button class="btn" id="btnStaffAdd">치료사 추가</button></div></div>
-    <div class="f"><label for="s_pwT">치료사용 비밀번호</label><input id="s_pwT" placeholder="바꿀 때만 입력"></div>
-    <div class="f"><label for="s_pwA">관리자용 비밀번호</label><input id="s_pwA" placeholder="바꿀 때만 입력"></div>
     <div class="f w2"><label>병원 로고</label><div class="acts"><button class="btn" id="btnLogo">이미지 넣기</button><button class="btn danger" id="btnLogoDel">빼기</button><input type="file" id="logoFile" accept="image/*" hidden></div></div>
   </div>
   <p class="muted">영역별 기본 운동 개수 (치료사 화면에서 영역을 고를 때의 기본값)</p><div class="chks" id="maxPer"></div>
@@ -611,7 +603,6 @@ $("logoFile").onchange=ev=>{const f=ev.target.files[0];ev.target.value="";if(!f)
 $("btnLogoDel").onclick=()=>{set.logo="";saveSet();brand();};
 async function sha(t){const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode("hp:"+t));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("");}
 $("btnSave").onclick=async()=>{["org","slogan","times","purl"].forEach(k=>set[k]=$("s_"+k).value.trim());
-  for(const [f,k] of [["s_pwT","pwT"],["s_pwA","pwA"]]){const v=$(f).value.trim();if(v){set[k]=await sha(v);$(f).value="";}}
   set.staff=(set.staff||[]).filter(t=>t.name&&t.name.trim());renderStaff();
   document.querySelectorAll("[data-max]").forEach(i=>set.max[i.dataset.max]=Math.max(0,Math.min(8,+i.value||0)));saveSet();brand();toast("설정을 저장했습니다. github에 올리려면 library.json을 내려받으세요.");};
 function download(name,content,type){const b=new Blob([content],{type});const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);}
