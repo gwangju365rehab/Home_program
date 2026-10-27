@@ -3614,6 +3614,7 @@ let pmSelected=null;
 const KEYS=[["bbs","BBS"],["fac","FAC"],["fmaT","FMA-UE"],["mmse","MMSE"],["mbi","MBI"]];
 
 /* ===== 기능 변화 추이 ===== */
+const dLabel=d=>{const m=String(d||"").match(/^\d{4}-(\d{2})-(\d{2})/);return m?`${+m[1]}월 ${+m[2]}일`:esc(String(d||""));};
 const TRK=[
   {k:"fmaT",n:"FMA-UE",t:"후글-마이어 상지 (0–66)",max:66,c:"#2F5F98"},
   {k:"bbs", n:"BBS",   t:"버그 균형 (0–56)",       max:56,c:"#F08200"},
@@ -3637,8 +3638,7 @@ function trendSvg(vals,dates,max,color,w,h){
   const line=pts.length>1?`<path d="${d}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`:"";
   const tick=pts.map(([i])=>`<line x1="${X(i).toFixed(1)}" y1="${yb}" x2="${X(i).toFixed(1)}" y2="${yb+3}" stroke="#C3CEDA"/>`).join("");
   const dots=pts.map(([i,v],k)=>`<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="${k===pts.length-1?3.6:2.4}" fill="${color}"><title>${esc(dates[i])} · ${v}</title></circle>`).join("");
-  const md=i=>{const m=String(dates[i]||"").match(/^\d{4}-(\d{2})-(\d{2})/);
-    return m?`${+m[1]}월 ${+m[2]}일`:esc(String(dates[i]||""));};
+  const md=i=>dLabel(dates[i]);
   const f=pts[0][0],l=pts.at(-1)[0];
   const lab=`<text x="${pL}" y="${h-7}" font-size="9.5" fill="#5C6A78">${md(f)}</text>`+
     (pts.length>1?`<text x="${w-pR}" y="${h-7}" font-size="9.5" fill="#5C6A78" text-anchor="end">${md(l)}</text>`:"");
@@ -3702,7 +3702,7 @@ function renderPM(){
     // --- 부위별 근력(MMT) ---
     const cols=p.records.slice(-7),rows=MMTP.filter(([p2])=>cols.some(r=>mmtOf(r,p2)!=null));
     if(rows.length)h+=`<div class="box"><h3>부위별 근력(MMT) 변화 <small>0 Zero ~ 5 Normal · 마비측</small></h3>
-      <div style="overflow-x:auto"><table class="mmtg"><thead><tr><th class="r">부위</th>${cols.map(r=>`<th>${esc(r.date.slice(5))}</th>`).join("")}<th>변화</th></tr></thead><tbody>
+      <div style="overflow-x:auto"><table class="mmtg"><thead><tr><th class="r">부위</th>${cols.map(r=>`<th>${dLabel(r.date)}</th>`).join("")}<th>변화</th></tr></thead><tbody>
       ${rows.map(([k,n])=>{const vs=cols.map(r=>mmtOf(r,k)),got=vs.filter(v=>v!=null),d=got.length>1?got.at(-1)-got[0]:null;
         return `<tr><td class="rl">${n}</td>${vs.map(v=>`<td><i style="background:${v==null?"#F2F5F9":MMTC[v]};color:${v==null?"#9AA7B4":"#17212B"}">${v==null?"–":v}</i></td>`).join("")}
           <td class="rl ${d>0?"chg-up":d<0?"chg-down":"muted"}">${d==null?"–":d>0?"+"+d:d===0?"–":d}</td></tr>`;}).join("")}
@@ -3713,7 +3713,7 @@ function renderPM(){
     if(!done.length)ph+=`<p class="muted" style="margin:0">아직 수행 기록이 없습니다. 아래 처방 기록에서 <b>수행 입력</b>을 누르세요.</p>`;
     else{
       ph+=p.records.filter(r=>r.perf).map(r=>{const dr=dayRate(r),er=perfRate(r);
-        return `<div class="pbar"><span class="pl">${esc(r.date.slice(5))}</span>
+        return `<div class="pbar"><span class="pl">${dLabel(r.date)}</span>
           <div class="pt"><i class="${pctCls(dr??er)}" style="width:${Math.round((dr??er??0)*100)}%"></i></div>
           <span class="pv">${esc(perfBadge(r))}</span></div>`;}).join("");
       const lastP=done.at(-1),iss=perfIssues(lastP);
