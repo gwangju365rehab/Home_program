@@ -197,51 +197,51 @@ dialog::backdrop{background:rgba(10,25,40,.45)}
   <div class="acts" style="justify-content:flex-end;margin-top:12px"><button class="btn pri" id="meOk">시작하기</button></div>
 </dialog>
 <dialog id="dlgPerf" style="max-width:640px">
-  <h3 style="margin:0 0 4px">지난 홈프로그램 수행 기록</h3>
+  <h3 style="margin:0 0 4px">집에서 얼마나 했는지 적기</h3>
   <p class="muted" style="margin:0 0 14px" id="perfHead"></p>
   <div class="grid" style="grid-template-columns:1fr 1fr;gap:12px">
-    <div class="f"><label for="perfDays">수행한 날 <small class="muted">환자·보호자에게 물어본 값</small></label><input id="perfDays" type="number" min="0" max="31" placeholder="예: 5"></div>
-    <div class="f"><label for="perfOf">물어본 기간 (일)</label><input id="perfOf" type="number" min="1" max="31" value="7"></div>
+    <div class="f"><label for="perfDays">며칠이나 했나요 <small class="muted">환자나 보호자에게 물어본 대로</small></label><input id="perfDays" type="number" min="0" max="31" placeholder="예: 5"></div>
+    <div class="f"><label for="perfOf">며칠 동안을 물어봤나요</label><input id="perfOf" type="number" min="1" max="31" value="7"></div>
   </div>
-  <div class="sub" style="margin-top:4px">운동별 수행 <small class="muted">못 한 운동은 사유를 고르면 다음 처방에 참고로 남습니다</small></div>
+  <div class="sub" style="margin-top:4px">운동 하나씩 <small class="muted">못 한 운동은 이유까지 고르면, 다음에 뽑을 때 맨 위에 다시 보여 줍니다</small></div>
   <div id="perfList" style="max-height:38vh;overflow-y:auto"></div>
   <div class="f" style="margin-top:12px"><label for="perfNote">한 줄 메모</label><input id="perfNote" placeholder="예: 어깨가 아파서 팔 들기만 쉬었다고 함"></div>
-  <div class="acts" style="justify-content:flex-end;margin-top:14px"><button class="btn" id="perfCancel">닫기</button><button class="btn pri" id="perfOk">수행 기록 저장</button></div>
+  <div class="acts" style="justify-content:flex-end;margin-top:14px"><button class="btn" id="perfCancel">닫기</button><button class="btn pri" id="perfOk">저장</button></div>
 </dialog>
 <header class="top">
   <img id="brandLogo" alt="" hidden><div><h1>병동 홈프로그램 자판기</h1><div class="brandsub" id="brandSub"></div></div>
   <nav class="steps">
-    <button class="step on" data-t="dash">대시보드</button>
+    <button class="step on" data-t="dash">환자 목록</button>
     <button class="step" data-t="input">1 평가 입력</button>
     <button class="step" data-t="review">2 운동 선정·검토</button>
     <button class="step" data-t="print">3 유인물 출력</button>
-    <button class="step" data-t="pm">환자 관리</button>
+    <button class="step" data-t="pm">기록·추이</button>
   </nav>
   <button class="btn sm" id="meBtn" style="margin-left:10px;background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.4);color:#fff"></button>
 </header>
 <main>
 
 <section class="pane on" id="p-dash">
-  <div class="head"><div><h2>대시보드</h2><p>환자별 처방 기록과 재평가 일정을 한눈에 봅니다.</p></div>
-    <div class="acts"><button class="btn pri big" id="btnDashNew">새 환자 평가</button></div></div>
-  <div class="box"><h3>환자 기록 저장 위치</h3>
+  <div class="head"><div><h2>환자 목록</h2><p>지금까지 홈프로그램을 뽑아 준 환자들입니다. 지난 기록을 다시 보거나, 재평가해서 새로 뽑을 수 있습니다.</p></div>
+    <div class="acts"><button class="btn pri big" id="btnDashNew">처음 보는 환자 시작</button></div></div>
+  <div class="box"><h3>기록을 어디에 저장할지</h3>
     <div class="tier t1" id="storeBox"><span id="storeInfo"></span></div>
-    <div class="acts" style="margin-top:12px"><button class="btn pri" id="btnDir">저장 폴더 연결</button><button class="btn" id="btnDirRe" hidden>폴더 다시 연결</button><button class="btn" id="btnReload">폴더에서 새로고침</button><button class="btn" id="btnPExport">환자 기록 백업(.json)</button><button class="btn" id="btnPImportPick">백업 불러오기</button><input type="file" id="pImportFile" accept=".json" hidden></div>
+    <div class="acts" style="margin-top:12px"><button class="btn pri" id="btnDir">기록을 저장할 폴더 고르기</button><button class="btn" id="btnDirRe" hidden>폴더 다시 열기</button><button class="btn" id="btnReload">다른 컴퓨터가 쓴 기록 가져오기</button><button class="btn" id="btnPExport">기록 전부 파일로 내려받기</button><button class="btn" id="btnPImportPick">내려받아 둔 파일 넣기</button><input type="file" id="pImportFile" accept=".json" hidden></div>
     
-    <p class="muted" style="margin-bottom:0">환자 이름 대신 가명·환자코드만 입력하세요. 환자 기록은 병원 PC 폴더에만 저장되고, github에는 운동 목록만 올라갑니다. 환자 기록 폴더는 github나 외부로 올리지 마세요.</p>
+    <p class="muted" style="margin-bottom:0">환자 이름은 적지 마세요. 가명이나 환자코드만 씁니다. 여기서 만든 기록은 고른 폴더 안에만 있고, 인터넷으로 나가지 않습니다.</p>
   </div>
   <div class="stats" id="stats"></div>
-  <div class="box"><h3>환자 목록</h3>
+  <div class="box"><h3>환자 찾기</h3>
     <div class="acts" style="margin-bottom:12px">
-      <div class="f" style="max-width:220px"><label for="dashQ">가명·병실 검색</label><input id="dashQ"></div>
+      <div class="f" style="max-width:220px"><label for="dashQ">가명이나 병실로 찾기</label><input id="dashQ"></div>
       <div class="f" style="max-width:170px"><label for="dashWard">병동</label><select id="dashWard"></select></div>
-      <div class="f" style="max-width:190px"><label for="dashOt">담당 치료사</label><select id="dashOt"></select></div>
+      <div class="f" style="max-width:190px"><label for="dashOt">담당 치료사만 보기</label><select id="dashOt"></select></div>
     </div>
     <div id="dashList"></div></div>
 </section>
 
 <section class="pane" id="p-pm">
-  <div class="head"><div><h2>환자 관리</h2><p>처방 기록이 날짜별로 쌓입니다. 이전 기록과 비교하고 다시 불러올 수 있습니다.</p></div></div>
+  <div class="head"><div><h2>기록과 추이</h2><p>한 환자가 그동안 어떻게 달라졌는지 봅니다. 지난 평가값을 그대로 불러와 다시 쓸 수도 있습니다.</p></div></div>
   <div class="box"><div class="acts"><div class="f" style="min-width:240px"><label for="pmSel">환자</label><select id="pmSel"></select></div><span class="muted" id="pmInfo" style="margin-top:20px"></span><button class="btn danger" id="btnPDel" style="margin-left:auto;margin-top:20px">환자 삭제</button></div></div>
   <div id="pmBody"></div>
 </section>
@@ -3544,7 +3544,7 @@ $("btnDirRe").onclick=async()=>{try{const h=await idbGet("dir");if(h&&await h.re
 function renderStore(){
   if(!$("storeInfo"))return;
   $("storeBox").className="tier "+(storeMode==="folder"?"t2":"t1");
-  $("storeInfo").innerHTML=storeMode==="folder"?`<b>폴더에 저장 중</b> <span class="muted">${esc(dirHandle.name)} 폴더 · patients 폴더에 환자별 파일, 날마다 backup에 사본. 다른 컴퓨터가 저장한 내용은 합쳐집니다.</span>`:`<b>브라우저에 임시 저장 중</b> <span class="muted">이 컴퓨터 브라우저에만 남아요. 병원 PC의 폴더(예: D드라이브)를 연결하세요.</span>`;
+  $("storeInfo").innerHTML=storeMode==="folder"?`<b>'${esc(dirHandle.name)}' 폴더에 저장하고 있습니다.</b> <span class="muted">환자마다 파일이 하나씩 생기고, 하루에 한 번 사본을 따로 남깁니다. 같은 폴더를 쓰는 다른 컴퓨터의 기록도 같이 모입니다.</span>`:`<b>아직 폴더를 안 골랐습니다.</b> <span class="muted">지금은 이 컴퓨터 브라우저에만 저장돼서, 브라우저를 정리하면 기록이 사라집니다. 아래에서 폴더를 고르세요.</span>`;
   if(storeMode==="folder")$("btnDirRe").hidden=true;
 }
 async function initStore(){
@@ -3587,7 +3587,7 @@ function renderDash(){
   const late=ps.filter(p=>{const r=latest(p);return r&&r.reeval&&r.reeval<t;}).length;
   const soon=ps.filter(p=>{const r=latest(p);return r&&r.reeval&&r.reeval>=t&&r.reeval<=in7;}).length;
   const todayN=ps.reduce((n,p)=>n+p.records.filter(r=>r.date===t).length,0);
-  $("stats").innerHTML=[["관리 중인 환자",ps.length],["오늘 처방",todayN],["7일 안 재평가",soon],["재평가 지남",late,late?"warn":""]].map(([a,b,c])=>`<div class="stat ${c||""}"><b>${b}</b><span>${a}</span></div>`).join("");
+  $("stats").innerHTML=[["저장된 환자",ps.length],["오늘 뽑은 홈프로그램",todayN],["이번 주에 재평가할 환자",soon],["재평가 날짜가 지난 환자",late,late?"warn":""]].map(([a,b,c])=>`<div class="stat ${c||""}"><b>${b}</b><span>${a}</span></div>`).join("");
   const q=$("dashQ").value.trim().toLowerCase();
   const wards=[...new Set(ps.map(p=>p.ward).filter(Boolean))].sort();
   const ots=[...new Set(ps.map(p=>p.therapist).filter(Boolean))].sort();
@@ -3596,9 +3596,9 @@ function renderDash(){
   const fw=$("dashWard").value,fo=$("dashOt").value;
   const rows=ps.filter(p=>(!q||(p.code+" "+(p.room||"")+" "+(p.ward||"")).toLowerCase().includes(q))&&(!fw||p.ward===fw)&&(!fo||p.therapist===fo))
     .sort((a,b)=>{const ra=latest(a)?.reeval||"9",rb=latest(b)?.reeval||"9";return ra.localeCompare(rb);});
-  $("dashList").innerHTML=rows.length?`<div style="overflow-x:auto"><table class="list"><thead><tr><th>가명</th><th>병동·병실</th><th>담당</th><th>마비측</th><th>최근 처방</th><th>운동 수</th><th>지난 수행</th><th>재평가 예정</th><th></th></tr></thead><tbody>${rows.map(p=>{const r=latest(p);return `<tr><td><b>${esc(p.code)}</b></td><td>${esc([p.ward,p.room].filter(Boolean).join(" "))}</td><td>${esc(p.therapist||"")}</td><td>${esc(p.side)}</td><td>${r?esc(r.date):"–"}</td><td>${r?r.plan.length:"–"}</td><td style="white-space:nowrap">${r?perfBadge(r):"–"}</td><td class="${r&&r.reeval&&r.reeval<t?"late":""}">${r&&r.reeval?esc(r.reeval):"–"}</td>
-    <td style="white-space:nowrap"><button class="btn sm" data-pm="${p.id}">기록</button> <button class="btn sm" data-re="${p.id}">재평가</button> <button class="btn sm" data-again="${p.id}">같은 처방 출력</button></td></tr>`;}).join("")}</tbody></table></div>`
-    :`<div class="empty">${ps.length?"검색 결과가 없습니다.":"아직 저장된 환자 기록이 없습니다. 평가 입력 → 홈프로그램 뽑기 → 출력하면 기록이 쌓입니다."}</div>`;
+  $("dashList").innerHTML=rows.length?`<div style="overflow-x:auto"><table class="list"><thead><tr><th>가명</th><th>병동·병실</th><th>담당</th><th>마비측</th><th>마지막으로 뽑은 날</th><th>운동 개수</th><th>집에서 한 정도</th><th>다음 재평가</th><th></th></tr></thead><tbody>${rows.map(p=>{const r=latest(p);return `<tr><td><b>${esc(p.code)}</b></td><td>${esc([p.ward,p.room].filter(Boolean).join(" "))}</td><td>${esc(p.therapist||"")}</td><td>${esc(p.side)}</td><td>${r?esc(r.date):"–"}</td><td>${r?r.plan.length:"–"}</td><td style="white-space:nowrap">${r?perfBadge(r):"–"}</td><td class="${r&&r.reeval&&r.reeval<t?"late":""}">${r&&r.reeval?esc(r.reeval):"–"}</td>
+    <td style="white-space:nowrap"><button class="btn sm" data-pm="${p.id}">지난 기록 보기</button> <button class="btn sm" data-re="${p.id}">다시 평가하기</button> <button class="btn sm" data-again="${p.id}">지난 유인물 다시 뽑기</button></td></tr>`;}).join("")}</tbody></table></div>`
+    :`<div class="empty">${ps.length?"검색 결과가 없습니다.":"아직 저장된 환자가 없습니다. 위의 ‘처음 보는 환자 시작’을 누르고 유인물까지 뽑으면 여기에 쌓입니다."}</div>`;
 }
 $("dashQ").oninput=renderDash;$("dashWard").onchange=renderDash;$("dashOt").onchange=renderDash;
 $("btnDashNew").onclick=()=>{$("btnClear").click();go("input");$("i_name").focus();};
@@ -3650,7 +3650,7 @@ function perfRate(r){ // 운동 수행률 0~1 (수행 기록이 없으면 null)
 const dayRate=r=>r.perf&&r.perf.days!=null&&r.perf.of?Math.min(1,r.perf.days/r.perf.of):null;
 const pctCls=v=>v==null?"":v<0.4?" low":v<0.7?" mid":"";
 function perfBadge(r){
-  if(!r.perf)return `<span class="muted">미입력</span>`;
+  if(!r.perf)return `<span class="muted">아직 안 물어봄</span>`;
   const d=dayRate(r),e=perfRate(r);
   return [r.perf.days!=null?`${r.perf.days}/${r.perf.of}일`:"",e!=null?`운동 ${Math.round(e*100)}%`:""].filter(Boolean).join(" · ")||"입력됨";
 }
@@ -3689,11 +3689,11 @@ function renderPM(){
         <div class="tv" style="color:${t.c}">${last}${d!=null?`<em class="${d>0?"chg-up":d<0?"chg-down":"muted"}">${d>0?"+"+d:d===0?"변화 없음":d}</em>`:""}</div>
         <div class="tx">${esc(dts[li[0]])}${li.length>1?" → "+esc(dts[li.at(-1)]):""} · ${got.length}회 측정</div></div>`;
     }).filter(Boolean).join("");
-    h+=`<div class="box"><h3>기능 변화 추이 <small>처방할 때 입력한 평가 점수를 날짜순으로 그렸습니다</small></h3>
+    h+=`<div class="box"><h3>기능이 어떻게 달라졌나 <small>홈프로그램을 뽑을 때 적은 평가 점수를 날짜순으로 이었습니다</small></h3>
       ${cards?`<div class="trends">${cards}</div>`:`<p class="muted" style="margin:0">아직 그릴 평가 점수가 없습니다. 평가 입력 화면에서 BBS·FAC·후글-마이어·MMSE·MBI를 적으면 여기에 추이가 그려집니다.</p>`}</div>`;
     // --- 부위별 근력(MMT) ---
     const cols=p.records.slice(-7),rows=MMTP.filter(([p2])=>cols.some(r=>mmtOf(r,p2)!=null));
-    if(rows.length)h+=`<div class="box"><h3>부위별 근력(MMT) 변화 <small>0 Zero ~ 5 Normal · 마비측</small></h3>
+    if(rows.length)h+=`<div class="box"><h3>어느 부위가 좋아졌나 <small>마비측 MMT, 0 Zero ~ 5 Normal</small></h3>
       <div style="overflow-x:auto"><table class="mmtg"><thead><tr><th class="r">부위</th>${cols.map(r=>`<th>${esc(r.date.slice(5))}</th>`).join("")}<th>변화</th></tr></thead><tbody>
       ${rows.map(([k,n])=>{const vs=cols.map(r=>mmtOf(r,k)),got=vs.filter(v=>v!=null),d=got.length>1?got.at(-1)-got[0]:null;
         return `<tr><td class="rl">${n}</td>${vs.map(v=>`<td><i style="background:${v==null?"#F2F5F9":MMTC[v]};color:${v==null?"#9AA7B4":"#17212B"}">${v==null?"–":v}</i></td>`).join("")}
@@ -3701,8 +3701,8 @@ function renderPM(){
       </tbody></table></div></div>`;
     // --- 홈프로그램 수행률 ---
     const done=p.records.filter(r=>r.perf);
-    let ph=`<div class="box"><h3>홈프로그램 수행률 <small>다음 치료 때 환자·보호자에게 물어 입력합니다</small></h3>`;
-    if(!done.length)ph+=`<p class="muted" style="margin:0">아직 수행 기록이 없습니다. 아래 처방 기록에서 <b>수행 입력</b>을 누르세요.</p>`;
+    let ph=`<div class="box"><h3>집에서 얼마나 했는지 <small>다음 치료 때 환자나 보호자에게 물어서 넣습니다</small></h3>`;
+    if(!done.length)ph+=`<p class="muted" style="margin:0">아직 물어본 기록이 없습니다. 아래 표에서 <b>집에서 한 것 입력</b>을 누르세요.</p>`;
     else{
       ph+=p.records.filter(r=>r.perf).map(r=>{const dr=dayRate(r),er=perfRate(r);
         return `<div class="pbar"><span class="pl">${esc(r.date.slice(5))}</span>
@@ -3719,12 +3719,12 @@ function renderPM(){
     const chg=KEYS.map(([k,n])=>{const x=a.key[k],y=b.key[k];if(x==null&&y==null)return "";const d=x!=null&&y!=null?y-x:null;return `<td>${n}</td><td>${x??"–"}</td><td>${y??"–"}</td><td class="${d>0?"chg-up":d<0?"chg-down":""}">${d==null?"":d>0?"+"+d:d}</td>`;}).filter(Boolean);
     const ai=new Set(a.plan.map(q=>q.id)),bi=new Set(b.plan.map(q=>q.id));
     const add=[...bi].filter(i=>!ai.has(i)).map(exName),rem=[...ai].filter(i=>!bi.has(i)).map(exName);
-    h+=`<div class="box"><h3>최근 두 기록 비교 <small>${esc(a.date)} → ${esc(b.date)}</small></h3>
+    h+=`<div class="box"><h3>지난번과 이번 비교 <small>${esc(a.date)} → ${esc(b.date)}</small></h3>
       ${chg.length?`<table class="stage"><thead><tr><th>평가</th><th>이전</th><th>최근</th><th>변화</th></tr></thead><tbody>${chg.map(c=>`<tr>${c}</tr>`).join("")}</tbody></table>`:`<p class="muted">비교할 평가 점수가 없습니다.</p>`}
       <p style="margin:12px 0 0"><b class="chg-up">추가된 운동</b> ${add.length?esc(add.join(", ")):"없음"}<br><b class="chg-down">빠진 운동</b> ${rem.length?esc(rem.join(", ")):"없음"}</p></div>`;
   }
-  h+=`<div class="box"><h3>처방 기록</h3><div style="overflow-x:auto"><table class="list"><thead><tr><th>처방일</th>${KEYS.map(k=>`<th>${k[1]}</th>`).join("")}<th>운동</th><th>수행</th><th>재평가 예정</th><th></th></tr></thead><tbody>${recs.map(r=>`<tr><td><b>${esc(r.date)}</b></td>${KEYS.map(([k])=>`<td>${r.key[k]??"–"}</td>`).join("")}<td style="max-width:300px">${esc(r.plan.map(q=>exName(q.id)).join(", "))}</td><td style="white-space:nowrap;padding-right:18px">${perfBadge(r)}</td><td>${esc(r.reeval||"–")}</td>
-    <td style="white-space:nowrap"><button class="btn sm${r.perf?"":" pri"}" data-perf="${r.id}">수행 입력</button> <button class="btn sm" data-load="${r.id}">평가값 불러오기</button> <button class="btn sm" data-again="${r.id}">다시 출력</button> <button class="btn sm danger" data-rdel="${r.id}">삭제</button></td></tr>`).join("")}</tbody></table></div></div>`;
+  h+=`<div class="box"><h3>그동안 뽑아 준 홈프로그램</h3><div style="overflow-x:auto"><table class="list"><thead><tr><th>처방일</th>${KEYS.map(k=>`<th>${k[1]}</th>`).join("")}<th>운동</th><th>집에서 한 정도</th><th>다음 재평가</th><th></th></tr></thead><tbody>${recs.map(r=>`<tr><td><b>${esc(r.date)}</b></td>${KEYS.map(([k])=>`<td>${r.key[k]??"–"}</td>`).join("")}<td style="max-width:300px">${esc(r.plan.map(q=>exName(q.id)).join(", "))}</td><td style="white-space:nowrap;padding-right:18px">${perfBadge(r)}</td><td>${esc(r.reeval||"–")}</td>
+    <td style="white-space:nowrap"><button class="btn sm${r.perf?"":" pri"}" data-perf="${r.id}">집에서 한 것 입력</button> <button class="btn sm" data-load="${r.id}">이 평가값 다시 쓰기</button> <button class="btn sm" data-again="${r.id}">유인물 다시 뽑기</button> <button class="btn sm danger" data-rdel="${r.id}">삭제</button></td></tr>`).join("")}</tbody></table></div></div>`;
   $("pmBody").innerHTML=h;
 }
 $("pmSel").onchange=()=>{pmSelected=$("pmSel").value;renderPM();};
@@ -3737,7 +3737,7 @@ function openPerf(p,r){
   $("perfOf").value=pf.of??7;
   $("perfNote").value=pf.note||"";
   const items=pf.items||{},rs=pf.reasons||{};
-  $("perfList").innerHTML=`<div class="prow head"><div>운동</div><div>수행</div><div>못 한 이유</div></div>`+
+  $("perfList").innerHTML=`<div class="prow head"><div>운동</div><div>했나요</div><div>못 했다면 왜</div></div>`+
     r.plan.map(q=>{const st=items[q.id]||"full";
       return `<div class="prow"><div>${esc(exName(q.id))}</div>
         <select data-pf="${q.id}">${Object.entries(PFS).map(([v,n])=>`<option value="${v}"${v===st?" selected":""}>${n}</option>`).join("")}</select>
