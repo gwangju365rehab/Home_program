@@ -163,6 +163,22 @@ dialog::backdrop{background:rgba(10,25,40,.45)}
 .stat.warn b{color:var(--danger)}
 .late{color:var(--danger);font-weight:700}
 .chg-up{color:var(--pri);font-weight:700}.chg-down{color:var(--danger);font-weight:700}
+.hist{overflow-x:auto}
+table.hist-t{border-collapse:separate;border-spacing:0;font-size:12.5px}
+table.hist-t th{padding:0 8px 9px;color:var(--sub);font-weight:600;white-space:nowrap;text-align:center;border-bottom:1px solid var(--line)}
+table.hist-t th.rh{text-align:left;padding-left:0;min-width:210px}
+table.hist-t td{padding:5px 8px;text-align:center;border-bottom:1px solid #EEF2F6}
+table.hist-t td.rl{text-align:left;padding-left:0;white-space:nowrap}
+table.hist-t tbody tr:hover td{background:var(--bg)}
+table.hist-t .dom-row td{padding-top:13px;font-weight:700;color:var(--ink);border-bottom:none;text-align:left}
+table.hist-t .dom-row .dot{margin-right:6px}
+table.hist-t i{display:inline-block;width:17px;height:17px;border-radius:50%;font-style:normal}
+table.hist-t i.on{box-shadow:0 0 0 1px rgba(0,0,0,.06) inset}
+table.hist-t i.off{background:#F0F3F7}
+table.hist-t .gone{color:#9AA7B4;text-decoration:line-through}
+.hist-leg{color:var(--sub);font-size:12px;margin:10px 0 0;display:flex;gap:16px;flex-wrap:wrap;align-items:center}
+.hist-leg b{display:inline-block;width:13px;height:13px;border-radius:50%;background:var(--pri);vertical-align:-2px;margin-right:5px}
+.hist-leg b.e{background:#F0F3F7}
 table.list{width:100%;border-collapse:separate;border-spacing:0;font-size:13.5px}
 table.list th{text-align:left;font-size:12px;color:var(--sub);font-weight:600;padding:0 14px 9px;border-bottom:1px solid var(--line);white-space:nowrap}
 table.list td{padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:middle}
@@ -3513,10 +3529,15 @@ function restoreForm(o){document.querySelectorAll(FORMSEL).forEach(e=>{if(!e.id|
 function loadLocalP(){try{const d=JSON.parse(localStorage.getItem(PKEY)||"null");if(d&&Array.isArray(d.patients))pdb=d;}catch{}}
 function sortRecs(p){p.records.sort((a,b)=>a.date.localeCompare(b.date)||a.savedAt.localeCompare(b.savedAt));}
 function mergeP(a,b){
+  // 덮어쓰기가 아니라 합치기: 없는 환자는 새로 넣고, 있는 환자는 기록을 이어 붙입니다.
+  // 같은 기록이 양쪽에 있으면 나중에 저장된 쪽을 남깁니다(폴더 동기화와 같은 규칙).
   const m=new Map(a.patients.map(p=>[p.id,p]));
   for(const p of b.patients){const q=m.get(p.id);if(!q){m.set(p.id,p);continue;}
-    const rs=new Map(q.records.map(r=>[r.id,r]));p.records.forEach(r=>{if(!rs.has(r.id))rs.set(r.id,r);});q.records=[...rs.values()];sortRecs(q);
-    if((p.updatedAt||"")>(q.updatedAt||"")){q.code=p.code;q.ward=p.ward;q.side=p.side;q.updatedAt=p.updatedAt;}}
+    const rs=new Map(q.records.map(r=>[r.id,r]));
+    p.records.forEach(r=>{const old=rs.get(r.id);if(!old||(r.savedAt||"")>(old.savedAt||""))rs.set(r.id,r);});
+    q.records=[...rs.values()];sortRecs(q);
+    if((p.updatedAt||"")>(q.updatedAt||"")){
+      ["code","ward","room","side","therapist","team","updatedAt"].forEach(k=>{if(p[k]!=null&&p[k]!=="")q[k]=p[k];});}}
   return {patients:[...m.values()]};
 }
 async function writeFile(dir,name,text){const fh=await dir.getFileHandle(name,{create:true});const w=await fh.createWritable();await w.write(text);await w.close();}
@@ -3787,6 +3808,32 @@ function renderPM(){
       </div>
       ${chg.length?`<table class="stage"><thead><tr><th>평가</th><th>${dLabel(a.date)}</th><th>${dLabel(b.date)}</th><th>변화</th></tr></thead><tbody>${chg.map(c=>`<tr>${c}</tr>`).join("")}</tbody></table>`:`<p class="muted">두 기록 모두에 들어 있는 평가 점수가 없습니다.</p>`}
       <p style="margin:12px 0 0"><b class="chg-up">${dLabel(b.date)}에 새로 들어간 운동</b> ${add.length?esc(add.join(", ")):"없음"}<br><b class="chg-down">빠진 운동</b> ${rem.length?esc(rem.join(", ")):"없음"}</p></div>`;
+  }
+  // 운동 종류가 회차마다 어떻게 바뀌었는지 한 장에 — 교수님이 말씀하신 "한눈에"
+  {
+    const cols=p.records.slice(-8);                       // 최근 8회까지
+    const seen=new Map();                                 // 운동 id → 들어간 회차
+    cols.forEach((r,ci)=>r.plan.forEach(q=>{
+      if(!seen.has(q.id))seen.set(q.id,new Set());
+      seen.get(q.id).add(ci);}));
+    const rows=[...seen.keys()].map(id=>({id,e:libById(id),cols:seen.get(id)}));
+    const order=Object.fromEntries(DOMS.map((d,i)=>[d.k,i]));
+    rows.sort((a,b)=>{
+      const da=a.e?order[a.e.dom]??99:99, db=b.e?order[b.e.dom]??99:99;
+      if(da!==db)return da-db;
+      return Math.min(...a.cols)-Math.min(...b.cols);});
+    let body="",lastDom=null;
+    for(const row of rows){
+      const d=row.e?DOMS.find(x=>x.k===row.e.dom):null;
+      if(d&&d.k!==lastDom){lastDom=d.k;
+        body+=`<tr class="dom-row"><td class="rl" colspan="${cols.length+1}"><span class="dot" style="background:${d.c}"></span>${d.n}</td></tr>`;}
+      const last=row.cols.has(cols.length-1);
+      body+=`<tr><td class="rl ${last?"":"gone"}">${esc(exName(row.id))}</td>`+
+        cols.map((r,ci)=>`<td><i class="${row.cols.has(ci)?"on":"off"}" style="${row.cols.has(ci)?`background:${d?d.c:"var(--pri)"}`:""}" title="${esc(r.date)} · ${row.cols.has(ci)?"포함":"빠짐"}"></i></td>`).join("")+`</tr>`;
+    }
+    if(rows.length)h+=`<div class="box"><h3>운동이 어떻게 바뀌었나 <small>회차마다 어떤 운동을 줬는지 한 장에</small></h3>
+      <div class="hist"><table class="hist-t"><thead><tr><th class="rh">운동</th>${cols.map(r=>`<th>${dLabel(r.date)}</th>`).join("")}</tr></thead><tbody>${body}</tbody></table></div>
+      <p class="hist-leg"><span><b></b>그날 처방에 들어감</span><span><b class="e"></b>빠짐</span><span>흐리게 그어진 운동은 지금은 쓰지 않습니다</span></p></div>`;
   }
   h+=`<div class="box"><h3>처방 기록 <small>최근 것이 맨 위입니다</small></h3>${recs.map((r,ri)=>{
     const ks=KEYS.filter(([k])=>r.key[k]!=null);
