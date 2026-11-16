@@ -59,6 +59,16 @@ input:focus,select:focus,textarea:focus{border-color:var(--pri);background:#fff;
 .item input.dose{width:190px}
 .empty{padding:18px;text-align:center;color:var(--sub)}
 .lib-row{display:grid;grid-template-columns:156px 1fr;gap:14px;padding:14px 0;border-top:1px solid #E8ECE6}
+.stat{border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:#fff}
+.stat b{display:block;font-size:24px;line-height:1.15}
+.stat span{color:var(--sub);font-size:12.5px}
+table.ops{width:100%;border-collapse:separate;border-spacing:0;font-size:13.5px}
+table.ops th{text-align:left;font-size:12px;color:var(--sub);font-weight:600;padding:0 14px 9px;border-bottom:1px solid var(--line);white-space:nowrap}
+table.ops td{padding:10px 14px;border-bottom:1px solid var(--line);white-space:nowrap}
+table.ops tbody tr:last-child td{border-bottom:none}
+table.ops tbody tr:hover td{background:var(--bg)}
+table.ops td.warn{color:var(--danger);font-weight:700}
+table.ops select{padding:5px 8px;font-size:13px}
 .thumb{width:154px;min-height:80px;border-radius:8px;border:1px dashed var(--line);display:grid;place-items:center;overflow:hidden;background:var(--bg);font-size:11px;color:var(--sub);text-align:center;cursor:pointer}
 .thumb img{width:100%;height:100%;object-fit:contain;background:#fff}
 #toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);background:var(--ink);color:#fff;padding:10px 18px;border-radius:9px;opacity:0;transition:.25s;pointer-events:none;z-index:99;max-width:90vw}
@@ -156,13 +166,22 @@ details.domg .body{display:flex;gap:8px 10px;flex-wrap:wrap;padding:0 14px 12px}
 </head>
 <body>
 <header class="top"><img id="brandLogo" alt=""><div><h1>홈프로그램 관리자 페이지</h1><div class="brandsub" id="brandSub"></div></div>
-<nav class="steps"><button class="step on" data-t="set">유인물 설정</button><button class="step" data-t="lib">운동 라이브러리</button><button class="step" data-t="ev">근거표</button></nav></header>
-<div class="warnbar">여기서 고친 내용은 <b>library.json</b>으로 내려받아 github에 올려야 치료사 화면에 반영됩니다. 환자 정보는 이 페이지에서 다루지 않습니다.</div>
+<nav class="steps"><button class="step on" data-t="ops">치료사·환자 현황</button><button class="step" data-t="set">유인물 설정</button><button class="step" data-t="lib">운동 라이브러리</button><button class="step" data-t="ev">근거표</button></nav></header>
+<div class="warnbar">여기서 고친 내용은 <b>library.json</b>으로 내려받아 github에 올려야 치료사 화면에 반영됩니다. 환자 기록은 고르신 폴더에서 읽기만 하며, 집계와 담당 치료사 말고는 바꾸지 않습니다.</div>
 <div class="warnbar" style="background:#fff;border-bottom:1px solid var(--line);display:flex;gap:8px;align-items:center;flex-wrap:wrap">
 <button class="btn pri" id="btnExport">library.json 내려받기</button><button class="btn" id="btnImportPick">library.json 불러오기</button><input type="file" id="importFile" accept=".json" hidden><button class="btn danger" id="btnReset">기본값으로 되돌리기</button>
 <span class="muted" style="margin-left:auto">고친 내용은 이 브라우저에 저장되고, 내려받은 library.json을 github에 올려야 모두에게 반영됩니다.</span></div>
 <main>
-<section class="pane on" id="p-set">
+<section class="pane on" id="p-ops">
+  <h2>치료사·환자 현황</h2><p>환자 기록 폴더를 읽어 치료사마다 환자를 몇 명 맡고 있고, 주당 몇 번·몇 가지 운동을 주고 있는지 봅니다. 개별 환자 내용은 보이지 않습니다.</p>
+  <div class="box"><h3>환자 기록 폴더</h3>
+    <p id="opsInfo" class="note">아직 폴더를 고르지 않았습니다. 치료사들이 기록을 저장하는 그 폴더를 고르세요.</p>
+    <div class="acts"><button class="btn pri" id="btnOpsDir">기록 폴더 고르기</button><button class="btn" id="btnOpsRe" hidden>폴더 다시 열기</button><button class="btn" id="btnOpsReload">다시 읽기</button></div>
+    <p class="muted" style="margin:10px 0 0">이 화면은 집계만 보여줍니다. 가명·병동·담당 치료사 말고는 아무것도 화면에 나오지 않습니다.</p>
+  </div>
+  <div id="opsBody"></div>
+</section>
+<section class="pane" id="p-set">
   <div class="head"><div><h2>유인물 설정</h2><p>모든 치료사 화면과 유인물에 공통으로 적용됩니다.</p></div>
 </div>
   <div class="box"><h3>기본 정보</h3><div class="grid">
@@ -628,5 +647,100 @@ function renderEv(){
   }
   renderSet();renderLib();renderEv();
 })();
+
+/* ===== 치료사·환자 현황 ===== */
+// 교수님 지적: "전체 관리를 하는 거라면 치료사마다 담당 환자, 환자별 대시보드,
+//              주당 몇 회·몇 가지 종류, 평균, 담당 환자 수, 담당 치료사 매칭 변경"
+let opsDir=null, ops=[];                       // ops = 폴더에서 읽은 환자들
+function idb(){return new Promise((res,rej)=>{const r=indexedDB.open("homeprog",1);r.onupgradeneeded=()=>r.result.createObjectStore("kv");r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
+async function idbSet(k,v){const d=await idb();return new Promise(r=>{const t=d.transaction("kv","readwrite");t.objectStore("kv").put(v,k);t.oncomplete=()=>r();t.onerror=()=>r();});}
+async function idbGet(k){const d=await idb();return new Promise(r=>{const q=d.transaction("kv").objectStore("kv").get(k);q.onsuccess=()=>r(q.result);q.onerror=()=>r(null);});}
+async function opsPdir(){return await opsDir.getDirectoryHandle("patients",{create:true});}
+
+async function opsRead(){
+  if(!opsDir)return;
+  try{
+    const d=await opsPdir(),list=[];
+    for await (const [name,h] of d.entries()){
+      if(h.kind!=="file"||!name.endsWith(".json"))continue;
+      try{const o=JSON.parse(await (await h.getFile()).text());if(o&&o.id&&Array.isArray(o.records))list.push(o);}catch{}
+    }
+    ops=list;renderOps();
+    toast(`환자 ${list.length}명을 읽었습니다.`);
+  }catch(e){toast("폴더를 읽지 못했습니다. 다시 연결하세요.",1);}
+}
+async function useOpsDir(h){
+  opsDir=h;$("opsInfo").innerHTML=`<b>'${esc(h.name)}' 폴더를 보고 있습니다.</b>`;
+  $("btnOpsRe").hidden=true;await opsRead();
+}
+$("btnOpsDir").onclick=async()=>{
+  if(!window.showDirectoryPicker){toast("크롬이나 엣지에서만 됩니다.",1);return;}
+  try{const h=await window.showDirectoryPicker({mode:"readwrite",id:"homeprog"});await idbSet("dir",h);await useOpsDir(h);}
+  catch(e){if(e&&e.name!=="AbortError")toast("폴더를 열지 못했습니다.",1);}
+};
+$("btnOpsRe").onclick=async()=>{try{const h=await idbGet("dir");if(h&&await h.requestPermission({mode:"readwrite"})==="granted")await useOpsDir(h);}catch{toast("폴더 권한을 받지 못했습니다.",1);}};
+$("btnOpsReload").onclick=()=>opsDir?opsRead():toast("먼저 폴더를 고르세요.",1);
+
+const WEEKMS=7*24*3600*1000;
+function opsStat(ps){
+  // 최근 8주 동안 처방을 몇 번 했고, 한 번에 운동을 몇 가지 줬는지
+  const since=Date.now()-8*WEEKMS;
+  let recs=0,exs=0,n=0;
+  ps.forEach(p=>p.records.forEach(r=>{
+    const t=Date.parse(r.date);if(isNaN(t)||t<since)return;
+    recs++;exs+=(r.plan||[]).length;n++;}));
+  const weeks=8;
+  return {pts:ps.length, rx:recs, perWeek:recs/weeks, kinds:n?exs/n:0,
+          late:ps.filter(p=>{const r=p.records[p.records.length-1];return r&&r.reeval&&r.reeval<new Date().toISOString().slice(0,10);}).length};
+}
+function renderOps(){
+  if(!ops.length){$("opsBody").innerHTML=`<div class="box"><p class="muted" style="margin:0">읽은 환자가 없습니다. 폴더 안에 patients 폴더가 있는지 확인하세요.</p></div>`;return;}
+  const by=new Map();
+  ops.forEach(p=>{const k=p.therapist||"(담당 없음)";if(!by.has(k))by.set(k,[]);by.get(k).push(p);});
+  const rows=[...by.entries()].sort((a,b)=>b[1].length-a[1].length);
+  const all=opsStat(ops);
+  let h=`<div class="box"><h3>전체</h3><div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px">
+    ${[["환자",ops.length+"명"],["치료사",rows.length+"명"],["주당 처방",all.perWeek.toFixed(1)+"회"],["한 번에 주는 운동",all.kinds.toFixed(1)+"가지"],["재평가 지남",all.late+"명"]]
+      .map(([n,v])=>`<div class="stat"><b>${v}</b><span>${n}</span></div>`).join("")}</div>
+    <p class="muted" style="margin:10px 0 0">주당 처방과 운동 가짓수는 최근 8주 기록으로 냈습니다.</p></div>`;
+
+  h+=`<div class="box"><h3>치료사별</h3><div style="overflow-x:auto"><table class="ops"><thead><tr>
+    <th>치료사</th><th>담당 환자</th><th>주당 처방</th><th>한 번에 주는 운동</th><th>재평가 지남</th><th>최근 처방</th></tr></thead><tbody>
+    ${rows.map(([t,ps])=>{const st=opsStat(ps);
+      const last=ps.map(p=>p.records[p.records.length-1]?.date||"").filter(Boolean).sort().pop()||"–";
+      return `<tr><td><b>${esc(t)}</b></td><td>${st.pts}명</td><td>${st.perWeek.toFixed(1)}회</td><td>${st.kinds.toFixed(1)}가지</td>
+        <td class="${st.late?"warn":""}">${st.late?st.late+"명":"–"}</td><td>${esc(last)}</td></tr>`;}).join("")}
+    </tbody></table></div>
+    <p class="muted" style="margin:10px 0 0">주당 처방이 유난히 낮거나 운동 가짓수가 치우친 치료사가 있는지 보세요.</p></div>`;
+
+  h+=`<div class="box"><h3>담당 바꾸기</h3>
+    <div style="overflow-x:auto"><table class="ops"><thead><tr><th>가명</th><th>병동·병실</th><th>지금 담당</th><th>바꿀 담당</th><th>기록</th></tr></thead><tbody>
+    ${ops.slice().sort((a,b)=>(a.ward||"").localeCompare(b.ward||"")||(a.code||"").localeCompare(b.code||"")).map(p=>`<tr>
+      <td><b>${esc(p.code||"")}</b></td><td>${esc([p.ward,p.room].filter(Boolean).join(" "))||"–"}</td>
+      <td>${esc(p.therapist||"–")}</td>
+      <td><select data-move="${esc(p.id)}"><option value="">그대로</option>${(set.staff||[]).filter(t=>t.name).map(t=>`<option value="${esc(t.name)}">${esc(t.name)}</option>`).join("")}</select></td>
+      <td>${p.records.length}건</td></tr>`).join("")}
+    </tbody></table></div>
+    <div class="acts" style="margin-top:12px"><button class="btn pri" id="btnMove">바꾼 담당 저장</button></div>
+    <p class="muted" style="margin:10px 0 0">치료사 명단은 '유인물 설정'에서 관리합니다. 저장하면 폴더의 환자 파일이 바로 바뀝니다.</p></div>`;
+  $("opsBody").innerHTML=h;
+  $("btnMove").onclick=opsMove;
+}
+async function opsMove(){
+  const sel=[...$("opsBody").querySelectorAll("[data-move]")].filter(s=>s.value);
+  if(!sel.length){toast("바꿀 담당을 고르세요.",1);return;}
+  if(!opsDir){toast("폴더가 연결되어 있지 않습니다.",1);return;}
+  let n=0;
+  for(const s of sel){
+    const p=ops.find(x=>x.id===s.dataset.move);if(!p)continue;
+    p.therapist=s.value;
+    const t=(set.staff||[]).find(q=>q.name===s.value);if(t&&t.team)p.team=t.team;
+    p.updatedAt=new Date().toISOString();
+    try{const d=await opsPdir(),fh=await d.getFileHandle(p.id+".json",{create:true});
+      const w=await fh.createWritable();await w.write(JSON.stringify(p));await w.close();n++;}catch{}
+  }
+  renderOps();
+  toast(n?`${n}명의 담당을 바꿨습니다.`:"저장하지 못했습니다.",n?0:1);
+}
 </script>
 </body></html>

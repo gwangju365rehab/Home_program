@@ -242,6 +242,24 @@ table.list .none{color:#9AA7B4}
 
 </head>
 <body>
+<dialog id="dlgPref" style="max-width:560px">
+  <h3 style="margin:0 0 4px">내 기본 설정</h3>
+  <p class="muted" style="margin:0 0 16px" id="prefWho"></p>
+  <div class="grid" style="grid-template-columns:1fr 1fr 1fr;gap:12px">
+    <div class="f"><label for="pf_ue">상지 부위 수</label><select id="pf_ue">${""}</select></div>
+    <div class="f"><label for="pf_le">하지 부위 수</label><select id="pf_le"></select></div>
+    <div class="f"><label for="pf_cog">인지 영역 수</label><select id="pf_cog"></select></div>
+  </div>
+  <p class="muted" style="margin:4px 0 14px;font-size:12.5px">평가값으로 영역을 추천할 때 몇 군데까지 고를지입니다.</p>
+  <div class="f"><label>영역마다 운동 몇 개까지 <small class="muted">비워 두면 공용 기본값</small></label>
+    <div id="prefMax" class="grid" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px"></div></div>
+  <div class="f w4" style="margin-top:12px"><label class="chk"><input type="checkbox" id="pf_check"> 유인물에 수행 기록표를 넣습니다</label></div>
+  <div class="f" style="max-width:240px"><label for="pf_care">기본 돌봄 형태</label>
+    <select id="pf_care"><option value="family">보호자 상주</option><option value="team">통합간병</option><option value="none">도와줄 사람 없음</option></select></div>
+  <div class="acts" style="justify-content:space-between;margin-top:18px">
+    <button class="btn" id="prefReset">기본값으로</button>
+    <span><button class="btn" id="prefCancel">닫기</button> <button class="btn pri" id="prefOk">저장</button></span></div>
+</dialog>
 <dialog id="dlgMe"><h3 style="margin:0 0 6px">치료사 확인</h3>
   <p class="muted" style="margin:0 0 12px">처방 기록에 담당 치료사로 남습니다. 이 컴퓨터에 저장되며 언제든 바꿀 수 있습니다.</p>
   <div class="f"><label for="meSel">치료사</label><select id="meSel"></select></div>
@@ -269,7 +287,7 @@ table.list .none{color:#9AA7B4}
     <button class="step" data-t="print">3 유인물 출력</button>
     <button class="step" data-t="pm">환자 관리</button>
   </nav>
-  <button class="btn sm" id="meBtn" style="margin-left:10px;background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.4);color:#fff"></button>
+  <button class="btn sm" id="prefBtn" title="내 기본 설정" aria-label="내 기본 설정" style="margin-left:6px">⚙</button><button class="btn sm" id="meBtn" style="margin-left:6px;background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.4);color:#fff"></button>
 </header>
 <main>
 
@@ -2945,14 +2963,14 @@ function recommendDoms(){
   // 하루치 홈프로그램이므로 꼭 필요한 영역만 좁혀서 추천합니다.
   const x=readInput(),on={};
   const weak=ks=>ks.filter(k=>x.lv[k]!=null).sort((a,b)=>x.lv[a]-x.lv[b]);   // 단계가 낮은 곳 먼저
-  weak(["sh","el","wr","gr"]).slice(0,2).forEach(k=>on[k]=1);                // 상지 2곳
+  weak(["sh","el","wr","gr"]).slice(0,pref.ue).forEach(k=>on[k]=1);           // 상지 — 설정값만큼
   if(($("i_mft").value!==""||$("i_jeb").checked)&&x.lv.fi>=1)on.fi=1;        // 손 기능 검사를 했고 집기가 되면 손가락
-  weak(["hip","kn","an"]).slice(0,1).forEach(k=>on[k]=1);                    // 하지 1곳
+  weak(["hip","kn","an"]).slice(0,pref.le).forEach(k=>on[k]=1);               // 하지 — 설정값만큼
   if((x.lv.bbs!=null||x.lv.fac!=null)&&standTier(x)>0)on.bal=1;              // 서기 가능하면 서기·걷기
   else if(x.lv.sit!=null)on.trunk=1;                                         // 아니면 앉기 균형
   if(x.f.swal||x.f.neck||x.f.saliva||$("i_meal").value.trim()){on.phar=1;on.oral=1;}
   const cogPick=COGK.filter(k=>$("cv_"+k).value!==""&&+$("cv_"+k).value<3);
-  if(cogPick.length)cogPick.slice(0,2).forEach(k=>on[k]=1);
+  if(cogPick.length)cogPick.slice(0,pref.cog).forEach(k=>on[k]=1);
   else if(x.lv.cog)["att","mem"].forEach(k=>on[k]=1);
   const byType={global:["lang_comp"],broca:["lang_exp"],tcm:["lang_exp"],wernicke:["lang_comp"],tcs:["lang_comp"],conduction:["lang_rep"],anomic:["lang_exp"]};
   (byType[x.f.wab]||[]).forEach(k=>on[k]=1);
@@ -2998,7 +3016,7 @@ $("btnRun").onclick=()=>{
   toast(n?`평가값으로 영역 ${n}개를 추천하고 운동 ${plan.length}개를 골랐습니다. 영역을 바꾸면 다시 뽑힙니다.`:"추천할 영역이 없습니다. 평가값을 입력하거나 아래에서 직접 고르세요.",n?0:1);
 };
 $("btnRepick").onclick=()=>{const n=applyRecommend();runPick();renderReview();toast(n?`영역 ${n}개를 다시 추천했습니다.`:"추천할 영역이 없습니다.",n?0:1);};
-$("btnClear").onclick=()=>{document.querySelectorAll(FORMSEL).forEach(e=>{if(e.type==="checkbox")e.checked=e.id==="i_lit";else if(e.id.startsWith("n_"))e.value=set.max[e.id.slice(2)];else if(e.tagName==="SELECT")e.selectedIndex=0;else e.value="";});$("i_date").value=today();plan=[];planInput=null;refresh();$("i_name").focus();};
+$("btnClear").onclick=()=>{document.querySelectorAll(FORMSEL).forEach(e=>{if(e.type==="checkbox")e.checked=e.id==="i_lit";else if(e.id.startsWith("n_")){e.value=maxOf(e.id.slice(2));delete e.dataset.touched;}else if(e.tagName==="SELECT")e.selectedIndex=0;else e.value="";});$("i_date").value=today();plan=[];planInput=null;refresh();$("i_name").focus();};
 
 // ---------- 검토 ----------
 const libById=id=>lib.find(e=>e.id===id);
@@ -3489,7 +3507,7 @@ function renderLib(){
   renderEv();
   $("sharedInfo").hidden=shared===null;if(shared!==null)$("sharedInfo").innerHTML=`<b>공용 라이브러리 사용 중</b>${shared?` (${esc(shared.slice(0,10))} 버전)`:""} · 여기서 고친 내용은 이 컴퓨터에만 임시로 보이고, 새로고침하면 공용 버전으로 돌아갑니다. 모두에게 반영하려면 '라이브러리 백업'으로 받은 library.json을 github에 올리세요.`;
   $("s_org").value=set.org;$("s_ot").value=set.ot;$("s_times").value=set.times;$("s_purl").value=set.purl||"";$("s_slogan").value=set.slogan||"";
-  $("maxPer").innerHTML=DOMS.map(d=>`<label class="chk">${d.n} <input type="number" min="0" max="8" style="width:58px" data-max="${d.k}" value="${set.max[d.k]}"></label>`).join("");
+  $("maxPer").innerHTML=DOMS.map(d=>`<label class="chk">${d.n} <input type="number" min="0" max="8" style="width:58px" data-max="${d.k}" value="${maxOf(d.k)}"></label>`).join("");
   $("libBody").innerHTML=DOMS.map(d=>`<div class="box dom" style="--c:${d.c}"><h3><span class="dot" style="background:${d.c}"></span>${d.n}<small>${d.g}</small></h3>`+lib.filter(e=>e.dom===d.k).map(e=>`
    <div class="lib-row"><div class="thumb" data-img="${e.id}" title="그림 넣기">${e.img?`<img src="${e.img}" alt="">`:"그림<br>넣기"}</div>
    <div><div class="grid">
@@ -3519,7 +3537,7 @@ $("logoFile").onchange=ev=>{const f=ev.target.files[0];ev.target.value="";if(!f)
     const g=c.getContext("2d");g.drawImage(im,0,0,c.width,c.height);set.logo=c.toDataURL("image/png");saveSet();renderBrand();toast("로고를 넣었습니다.");};im.src=r.result;};r.readAsDataURL(f);};
 $("btnLogoDel").onclick=()=>{set.logo="";saveSet();renderBrand();toast("로고를 뺐습니다.");};
 $("btnSetSave").onclick=()=>{set.org=$("s_org").value.trim();set.ot=$("s_ot").value.trim();set.times=$("s_times").value.trim();set.purl=$("s_purl").value.trim();set.slogan=$("s_slogan").value.trim();renderBrand();
-  document.querySelectorAll("[data-max]").forEach(i=>set.max[i.dataset.max]=Math.max(0,Math.min(8,+i.value||0)));saveSet();DOMS.forEach(d=>{if(!$("d_"+d.k).checked)$("n_"+d.k).value=set.max[d.k];});toast("설정을 저장했습니다.");};
+  document.querySelectorAll("[data-max]").forEach(i=>set.max[i.dataset.max]=Math.max(0,Math.min(8,+i.value||0)));saveSet();DOMS.forEach(d=>{if(!$("d_"+d.k).checked)$("n_"+d.k).value=maxOf(d.k);});toast("설정을 저장했습니다.");};
 function download(name,content,type){const b=new Blob([content],{type});const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);}
 $("btnExport").onclick=()=>{download("library.json",JSON.stringify({app:"homeprog",version:2,exportedAt:new Date().toISOString(),lib:lib.map(x=>({id:x.id,...pickEditable(x)})),set},null,2),"application/json");toast("라이브러리 백업을 저장했습니다.");};
 $("btnImportPick").onclick=()=>$("importFile").click();
@@ -3541,13 +3559,30 @@ const CV_OPT=`<option value="">비움 (전체 수준)</option><option value="1">
 $("adlPick").innerHTML=DEFAULT_LIB.filter(e=>e.dom==="adl").map(e=>`<label class="chk"><input type="checkbox" id="adl_${e.id}">${esc(e.name)}</label>`).join("");
 $("stCOG").innerHTML=COGK.map(k=>`<tr data-cog="${k}"><td>${DOM[k].n}</td><td><select id="cv_${k}" aria-label="${DOM[k].n} 결과">${CV_OPT}</select></td><td class="auto"></td></tr>`).join("");
 $("p-input").addEventListener("input",refresh);$("p-input").addEventListener("change",refresh);
-$("p-review").addEventListener("change",e=>{if(e.target.id&&(e.target.id.startsWith("d_")||e.target.id.startsWith("n_"))){refresh();runPick();renderReview();}});
+$("p-review").addEventListener("change",e=>{if(e.target.id&&(e.target.id.startsWith("d_")||e.target.id.startsWith("n_"))){if(e.target.id.startsWith("n_"))e.target.dataset.touched="1";refresh();runPick();renderReview();}});
 $("i_date").value=today();refresh();
 
 
 // ---------- 치료사 (이 컴퓨터에 저장) ----------
 try{me=JSON.parse(localStorage.getItem("homeprog_me")||"null")||me;}catch{}
-function meLabel(){$("meBtn").textContent=me.name?`담당 ${me.name}`+(me.team?` · ${me.team}`:""):"치료사 선택";}
+// 교수님 지적: "치료사마다 자기 선호도가 있으니 치료사마다 세팅값을 할 수 있게"
+const PREFDEF={ue:2,le:1,cog:2,max:{},check:true,care:"family"};
+let pref={...PREFDEF};
+const prefKey=()=>"homeprog_pref_"+(me.name||"공용");
+function loadPref(){
+  pref={...PREFDEF,max:{}};
+  try{const o=JSON.parse(localStorage.getItem(prefKey())||"null");if(o)pref={...pref,...o,max:{...(o.max||{})}};}catch{}
+}
+function savePref(){try{localStorage.setItem(prefKey(),JSON.stringify(pref));}catch{}}
+// 이 영역에서 운동을 몇 개까지 뽑을지 — 치료사 설정이 있으면 그걸 씁니다
+const maxOf=k=>pref.max[k]??(set.max&&set.max[k])??(DOM[k]?DOM[k].max:2);
+function meLabel(){$("meBtn").textContent=me.name?`담당 ${me.name}`+(me.team?` · ${me.team}`:""):"치료사 선택";loadPref();applyPref();}
+// 영역 칩은 설정을 읽기 전에 그려지므로, 읽은 뒤 개수를 다시 맞춥니다
+function applyPref(){
+  DOMS.forEach(d=>{const n=$("n_"+d.k);if(n&&!n.dataset.touched)n.value=maxOf(d.k);});
+  if($("o_check"))$("o_check").checked=pref.check!==false;
+  const c=$("i_care");if(c&&!c.dataset.touched&&pref.care)c.value=pref.care;
+}
 function askMe(force){
   const staff=(set.staff||[]).filter(t=>t&&t.name);
   if(!force&&me.name)return meLabel();
@@ -3570,6 +3605,24 @@ $("meOk").onclick=()=>{
   try{localStorage.setItem("homeprog_me",JSON.stringify(me));}catch{}
   set.ot=name;meLabel();$("dlgMe").close();if(typeof renderDash==="function")renderDash();
 };
+$("prefBtn").onclick=()=>{
+  $("prefWho").textContent=(me.name?`${me.name} 선생님`:"치료사를 아직 고르지 않았습니다")+" · 이 컴퓨터에 저장됩니다";
+  const num=(id,v,lo,hi)=>{$(id).innerHTML=[];let h="";for(let i=lo;i<=hi;i++)h+=`<option value="${i}"${i===v?" selected":""}>${i}곳</option>`;$(id).innerHTML=h;};
+  num("pf_ue",pref.ue,1,4);num("pf_le",pref.le,1,3);num("pf_cog",pref.cog,0,4);
+  $("prefMax").innerHTML=DOMS.map(d=>`<label class="chk" style="justify-content:space-between"><span>${esc(d.n)}</span>
+    <input type="number" min="0" max="6" style="width:62px" data-pmax="${d.k}" value="${pref.max[d.k]??""}" placeholder="${(set.max&&set.max[d.k])??d.max}"></label>`).join("");
+  $("pf_check").checked=pref.check!==false;
+  $("pf_care").value=pref.care||"family";
+  $("dlgPref").showModal();};
+$("prefCancel").onclick=()=>$("dlgPref").close();
+$("prefReset").onclick=()=>{pref={...PREFDEF,max:{}};savePref();$("dlgPref").close();toast("기본값으로 되돌렸습니다.");};
+$("prefOk").onclick=()=>{
+  pref.ue=+$("pf_ue").value;pref.le=+$("pf_le").value;pref.cog=+$("pf_cog").value;
+  pref.max={};$("prefMax").querySelectorAll("[data-pmax]").forEach(i=>{const v=i.value.trim();if(v!=="")pref.max[i.dataset.pmax]=Math.max(0,Math.min(6,+v));});
+  pref.check=$("pf_check").checked;pref.care=$("pf_care").value;
+  savePref();$("dlgPref").close();applyPref();
+  toast("내 기본 설정을 저장했습니다. 다음에 뽑을 때부터 적용됩니다.");};
+$("i_care")&&$("i_care").addEventListener("change",e=>{e.target.dataset.touched="1";});
 $("meBtn").onclick=()=>askMe(true);
 meLabel();
 
@@ -3968,13 +4021,15 @@ initStore();
 })();
 
 // 공용 라이브러리(github 등 웹 주소로 열었을 때 같은 폴더의 library.json)
+loadPref();applyPref();          // 내 설정을 화면에 반영
 (async()=>{
   if(!/^https?:$/.test(location.protocol))return;
   try{const r=await fetch("library.json",{cache:"no-store"});if(!r.ok)return;const j=await r.json();if(j.app!=="homeprog"||!Array.isArray(j.lib))return;
     lib=mergeLib(j.lib);if(j.set)set={...set,...j.set,max:{...set.max,...(j.set.max||{})}};
-    shared=j.exportedAt||"";DOMS.forEach(d=>{if(!$("d_"+d.k).checked)$("n_"+d.k).value=set.max[d.k];});
+    shared=j.exportedAt||"";DOMS.forEach(d=>{const n=$("n_"+d.k);if(n&&!n.dataset.touched)n.value=maxOf(d.k);});
     renderBrand();
     if(typeof askMe==="function"){meLabel();if($("dlgMe")&&$("dlgMe").open){$("dlgMe").close();askMe(true);}}
+    if(typeof applyPref==="function")applyPref();
     toast("공용 운동 라이브러리를 불러왔습니다.");}catch{}
 })();
 </script>
