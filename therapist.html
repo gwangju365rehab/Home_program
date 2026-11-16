@@ -115,7 +115,8 @@ table.check th{background:#EEF3EF}
 .card .no{position:absolute;left:-7px;top:-7px;width:22px;height:22px;border-radius:50%;background:var(--c,#1F3B2F);color:#fff;font-weight:700;font-size:11pt;display:flex;align-items:center;justify-content:center}
 table.sched td{vertical-align:middle;padding:4px 5px}
 table.sched th.exh,table.sched td.exn{text-align:left;width:auto}
-table.sched th:not(.exh),table.sched td:not(.exn):not([colspan]){width:36px}
+table.sched th.dayh,table.sched td.dayc{width:110px;font-size:9.5pt;color:#4A5A52;white-space:nowrap}
+table.sched th:last-child,table.sched td:last-child:not(.exn):not([colspan]){width:60px}
 table.sched td.exn{font-size:10pt;line-height:1.35}
 table.sched td.exn .n{display:inline-block;min-width:16px;margin-right:5px;font-weight:700;color:#1F3B2F}
 table.sched tr.slotrow td{background:#F6F9F6;text-align:left;padding:4px 6px;font-size:9.5pt}
@@ -3427,16 +3428,16 @@ function renderPrint(){
     <ol>${e.steps.map(s=>`<li>${esc(s)}</li>`).join("")}</ol>${e.caution?`<div class="cau">⚠ ${esc(e.caution)}</div>`:""}
     <div class="foot"><span class="carer">${needCarer(e,x)?"보호자와 함께":""}</span>${e.url?`<a class="qr" href="${esc(e.url)}" target="_blank" rel="noopener" title="클릭하면 영상이 열립니다">${qrSvg(e.url)}<small>영상 보기</small></a>`:""}</div></div></div>`;});
   const meal=x.meal?`<div class="meal"><b>식사할 때 지킬 것</b><div style="white-space:pre-wrap">${esc(x.meal)}</div></div>`:"";
-  // 운동 한 줄씩, 그날 하는 날에만 칸이 생깁니다
+  // 하루치만. 운동 한 줄에 체크칸 하나, 시간대는 소제목으로.
   const rowsBySlot=[0,1,2,3].map(sl=>exItems.map((o,i)=>({o,i})).filter(({o})=>slotsOf(o.e)[0]===sl));
-  const chk=$("o_check").checked&&exItems.length?`<table class="check sched"><tr><th class="exh">운동</th>${DAYN.map(d=>`<th>${d}</th>`).join("")}</tr>${
+  const chk=$("o_check").checked&&exItems.length?`<table class="check sched"><tr><th class="exh">오늘 할 운동</th><th class="dayh">언제</th><th>했어요</th></tr>${
     [0,1,2,3].filter(sl=>rowsBySlot[sl].length).map(sl=>
-      `<tr class="slotrow"><td colspan="8"><b>${SLOTN[sl]}</b> <small>${SLOTWHEN[sl]}</small></td></tr>`+
-      rowsBySlot[sl].map(({o,i})=>{const ds=daysOf(o.e);
-        return `<tr><td class="exn"><span class="n">${i+1}</span>${esc(o.e.name)}</td>${
-          DAYN.map((_,d)=>`<td>${ds.includes(d)?`<span class="tick"></span>`:`<span class="rest">·</span>`}</td>`).join("")}</tr>`;}).join("")
+      `<tr class="slotrow"><td colspan="3"><b>${SLOTN[sl]}</b> <small>${SLOTWHEN[sl]}</small></td></tr>`+
+      rowsBySlot[sl].map(({o,i})=>{const f=+o.e.freq||7;
+        return `<tr><td class="exn"><span class="n">${i+1}</span>${esc(o.e.name)}</td>
+          <td class="dayc">${f>=7?"매일":esc(freqLabel(o.e))}</td><td><span class="tick"></span></td></tr>`;}).join("")
     ).join("")}</table>
-    <div class="muted" style="font-size:9.5pt;margin-top:3px">그날 할 운동에만 칸이 있습니다. 하고 나면 칸에 표시하세요. 가운뎃점은 쉬는 날입니다.</div>`:"";
+    <div class="muted" style="font-size:9.5pt;margin-top:3px">하루치입니다. 하고 나면 칸에 표시하세요. '주 3회'처럼 적힌 운동은 그 요일에만 합니다.</div>`:"";
   const head=`<div class="ph"><div class="brand">${set.logo?`<img src="${set.logo}" alt="">`:""}<div><div style="font-size:10.5pt;color:#555">${esc(set.org)}${set.slogan?` · ${esc(set.slogan)}`:""}</div><h1>나의 병동 운동</h1><div style="font-size:11.5pt">${esc(set.times||"하루 2번 (오전·오후), 주 6일")}</div></div></div>
     <div class="who"><b>${esc(x.name)}</b>${x.name?" 님":""}${x.ward?` · ${esc(x.ward)}`:""}<br>${x.side&&x.side!=="없음"?`마비된 쪽: ${esc(x.side)}<br>`:""}${esc(x.date)}${set.ot?` · 담당 ${esc(set.ot)}`:""}</div></div>
     ${exItems.length||purl?`<div class="map">${exItems.length?`<div>${bodySvg(allParts,"#1F6F78",92)}</div><div class="legend"><b>오늘 쓰는 부위</b>${[...new Set(exItems.map(o=>o.e.dom))].map(k=>`<span class="lg" style="--c:${DOM[k].c}">${DOM[k].n} ${exItems.filter(o=>o.e.dom===k).length}개</span>`).join("")}</div>`:""}
