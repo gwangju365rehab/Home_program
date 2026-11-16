@@ -113,14 +113,15 @@ table.check td:first-child,table.check th:first-child{text-align:left}
 table.check th{background:#EEF3EF}
 .card{position:relative}
 .card .no{position:absolute;left:-7px;top:-7px;width:22px;height:22px;border-radius:50%;background:var(--c,#1F3B2F);color:#fff;font-weight:700;font-size:11pt;display:flex;align-items:center;justify-content:center}
-table.sched{table-layout:fixed}
-table.sched td{vertical-align:middle;padding:5px 4px}
-table.sched th:first-child,table.sched td.when{width:80px}
-table.sched td.when{text-align:left;white-space:nowrap;background:#F6F9F6}
-table.sched td.when small{display:block;font-weight:400;font-size:8pt;color:#5A6B62;line-height:1.25}
-table.sched .nos{display:block;font-weight:700;font-size:10.5pt;line-height:1.4;word-spacing:3px}
-table.sched .tick{display:inline-block;width:11px;height:11px;border:1px solid #9AA59D;border-radius:2px;margin-top:4px;background:#fff}
-table.sched .rest{color:#AAB5AE;font-size:9pt}
+table.sched td{vertical-align:middle;padding:4px 5px}
+table.sched th.exh,table.sched td.exn{text-align:left;width:auto}
+table.sched th:not(.exh),table.sched td:not(.exn):not([colspan]){width:36px}
+table.sched td.exn{font-size:10pt;line-height:1.35}
+table.sched td.exn .n{display:inline-block;min-width:16px;margin-right:5px;font-weight:700;color:#1F3B2F}
+table.sched tr.slotrow td{background:#F6F9F6;text-align:left;padding:4px 6px;font-size:9.5pt}
+table.sched tr.slotrow small{font-weight:400;color:#5A6B62}
+table.sched .tick{display:inline-block;width:12px;height:12px;border:1px solid #9AA59D;border-radius:2px;background:#fff;vertical-align:-1px}
+table.sched .rest{color:#C3CCC6;font-size:10pt}
 .foot-org{margin-top:6px;text-align:right;font-size:9.5pt;color:#667}
 .stop{margin-top:10px;background:#FBEAEC;border-radius:8px;padding:8px 12px;font-weight:700;font-size:12pt;break-inside:avoid}
 @media screen and (max-width:820px){.item{grid-template-columns:auto 1fr}.item .acts{grid-column:1/-1;flex-wrap:nowrap}.item input.dose{width:auto;flex:1;min-width:0}.tag{white-space:normal}.grid{grid-template-columns:1fr 1fr}main{padding:18px}.paper{width:100%;min-height:0;padding:16px}.cards{grid-template-columns:1fr}}
@@ -3426,11 +3427,16 @@ function renderPrint(){
     <ol>${e.steps.map(s=>`<li>${esc(s)}</li>`).join("")}</ol>${e.caution?`<div class="cau">⚠ ${esc(e.caution)}</div>`:""}
     <div class="foot"><span class="carer">${needCarer(e,x)?"보호자와 함께":""}</span>${e.url?`<a class="qr" href="${esc(e.url)}" target="_blank" rel="noopener" title="클릭하면 영상이 열립니다">${qrSvg(e.url)}<small>영상 보기</small></a>`:""}</div></div></div>`;});
   const meal=x.meal?`<div class="meal"><b>식사할 때 지킬 것</b><div style="white-space:pre-wrap">${esc(x.meal)}</div></div>`:"";
-  const grid=buildSched(exItems);
-  const chk=$("o_check").checked&&exItems.length?`<table class="check sched"><tr><th>언제</th>${DAYN.map(d=>`<th>${d}</th>`).join("")}</tr>${
-    [0,1,2,3].filter(sl=>schedHasRow(grid,sl)).map(sl=>`<tr><td class="when"><b>${SLOTN[sl]}</b><small>${SLOTWHEN[sl]}</small></td>${
-      grid[sl].map(c=>`<td>${c.length?`<span class="nos">${c.join(" ")}</span><span class="tick"></span>`:`<span class="rest">쉼</span>`}</td>`).join("")}</tr>`).join("")}</table>
-    <div class="muted" style="font-size:9.5pt;margin-top:3px">칸에 적힌 번호가 그때 할 운동입니다. 끝내면 ☐에 표시하세요. 빈 칸은 쉬는 시간입니다.</div>`:"";
+  // 운동 한 줄씩, 그날 하는 날에만 칸이 생깁니다
+  const rowsBySlot=[0,1,2,3].map(sl=>exItems.map((o,i)=>({o,i})).filter(({o})=>slotsOf(o.e)[0]===sl));
+  const chk=$("o_check").checked&&exItems.length?`<table class="check sched"><tr><th class="exh">운동</th>${DAYN.map(d=>`<th>${d}</th>`).join("")}</tr>${
+    [0,1,2,3].filter(sl=>rowsBySlot[sl].length).map(sl=>
+      `<tr class="slotrow"><td colspan="8"><b>${SLOTN[sl]}</b> <small>${SLOTWHEN[sl]}</small></td></tr>`+
+      rowsBySlot[sl].map(({o,i})=>{const ds=daysOf(o.e);
+        return `<tr><td class="exn"><span class="n">${i+1}</span>${esc(o.e.name)}</td>${
+          DAYN.map((_,d)=>`<td>${ds.includes(d)?`<span class="tick"></span>`:`<span class="rest">·</span>`}</td>`).join("")}</tr>`;}).join("")
+    ).join("")}</table>
+    <div class="muted" style="font-size:9.5pt;margin-top:3px">그날 할 운동에만 칸이 있습니다. 하고 나면 칸에 표시하세요. 가운뎃점은 쉬는 날입니다.</div>`:"";
   const head=`<div class="ph"><div class="brand">${set.logo?`<img src="${set.logo}" alt="">`:""}<div><div style="font-size:10.5pt;color:#555">${esc(set.org)}${set.slogan?` · ${esc(set.slogan)}`:""}</div><h1>나의 병동 운동</h1><div style="font-size:11.5pt">${esc(set.times||"하루 2번 (오전·오후), 주 6일")}</div></div></div>
     <div class="who"><b>${esc(x.name)}</b>${x.name?" 님":""}${x.ward?` · ${esc(x.ward)}`:""}<br>${x.side&&x.side!=="없음"?`마비된 쪽: ${esc(x.side)}<br>`:""}${esc(x.date)}${set.ot?` · 담당 ${esc(set.ot)}`:""}</div></div>
     ${exItems.length||purl?`<div class="map">${exItems.length?`<div>${bodySvg(allParts,"#1F6F78",92)}</div><div class="legend"><b>오늘 쓰는 부위</b>${[...new Set(exItems.map(o=>o.e.dom))].map(k=>`<span class="lg" style="--c:${DOM[k].c}">${DOM[k].n} ${exItems.filter(o=>o.e.dom===k).length}개</span>`).join("")}</div>`:""}
