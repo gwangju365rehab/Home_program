@@ -298,7 +298,7 @@ table.list .none{color:#9AA7B4}
     <div class="acts"><button class="btn pri big" id="btnDashNew">처음 보는 환자 시작</button></div></div>
   <div class="box"><h3>기록을 어디에 저장할지</h3>
     <div class="tier t1" id="storeBox"><span id="storeInfo"></span></div>
-    <div class="acts" style="margin-top:12px"><button class="btn pri" id="btnDir">기록을 저장할 폴더 고르기</button><button class="btn" id="btnDirRe" hidden>폴더 다시 열기</button><button class="btn" id="btnReload">다른 컴퓨터가 쓴 기록 가져오기</button><button class="btn" id="btnPExport">기록 전부 파일로 내려받기</button><button class="btn" id="btnPImportPick">내려받아 둔 파일 넣기</button><input type="file" id="pImportFile" accept=".json" hidden></div>
+    <div class="acts" style="margin-top:12px"><button class="btn pri" id="btnDir">기록을 저장할 폴더 고르기</button><button class="btn" id="btnDirRe" hidden>폴더 다시 열기</button><button class="btn" id="btnReload">다른 컴퓨터가 쓴 기록 가져오기</button><button class="btn" id="btnPExport">기록 전부 파일로 내려받기</button><button class="btn" id="btnPImportPick">내려받아 둔 파일 넣기</button><button class="btn" id="btnDemo">시연용 환자 넣기</button><input type="file" id="pImportFile" accept=".json" hidden></div>
     
     <p class="muted" style="margin-bottom:0">환자 이름은 적지 마세요. 가명이나 환자코드만 씁니다. 여기서 만든 기록은 고른 폴더 안에만 있고, 인터넷으로 나가지 않습니다.</p>
   </div>
@@ -3731,6 +3731,23 @@ async function initStore(){
 }
 $("btnReload").onclick=async()=>{if(storeMode!=="folder"){toast("먼저 저장 폴더를 연결하세요.",1);return;}await readFolder();renderDash();toast("폴더에서 환자 기록을 다시 읽었습니다.");};
 $("btnPExport").onclick=()=>{download(`홈프로그램_환자기록_${today()}.json`,JSON.stringify({app:"homeprog-patients",version:1,...pdb},null,1),"application/json");toast("환자 기록 백업을 저장했습니다.");};
+$("btnDemo").onclick=async()=>{
+  if(hasDemo()){
+    if(!confirm("시연용 환자 3명을 빼시겠습니까? 실제 환자 기록은 그대로입니다."))return;
+    const gone=pdb.patients.filter(p=>p.demo||String(p.id).startsWith(DEMOID));
+    pdb.patients=pdb.patients.filter(p=>!(p.demo||String(p.id).startsWith(DEMOID)));
+    for(const p of gone){try{await removePatientFile(p.id);}catch{}}
+    await persistP();renderDash();demoBtn();
+    toast("시연용 환자를 뺐습니다.");
+  }else{
+    const d=demoPatients();
+    pdb.patients=pdb.patients.filter(p=>!(p.demo||String(p.id).startsWith(DEMOID))).concat(d);
+    sortRecs&&d.forEach(p=>sortRecs(p));
+    for(const p of d){await persistP(p);}
+    renderDash();demoBtn();
+    toast("시연용 환자 3명(한빛·솔뫼·새벽)을 넣었습니다. 발표가 끝나면 같은 자리에서 빼세요.");
+  }
+};
 $("btnPImportPick").onclick=()=>$("pImportFile").click();
 $("pImportFile").onchange=ev=>{const f=ev.target.files[0];ev.target.value="";if(!f)return;const r=new FileReader();
   r.onload=async()=>{try{const d=JSON.parse(r.result);if(!Array.isArray(d.patients))throw 0;pdb=mergeP(pdb,d);await persistP();renderDash();toast("백업을 합쳐서 불러왔습니다.");}catch{toast("환자 기록 백업 파일이 아닙니다.",1);}};r.readAsText(f);};
@@ -3756,7 +3773,7 @@ async function saveRecord(quiet){
 // 대시보드
 const exName=id=>(libById(id)||{name:"(삭제된 운동)"}).name;
 function latest(p){return p.records.at(-1);}
-function renderDash(){
+function renderDash(){demoBtn();
   if(!$("dashList"))return;
   const t=today(),in7=new Date(Date.now()+7*864e5).toISOString().slice(0,10);
   const ps=pdb.patients;
@@ -3773,7 +3790,7 @@ function renderDash(){
   const rows=ps.filter(p=>(!q||(p.code+" "+(p.room||"")+" "+(p.ward||"")).toLowerCase().includes(q))&&(!fw||p.ward===fw)&&(!fo||p.therapist===fo))
     .sort((a,b)=>{const ra=latest(a)?.reeval||"9",rb=latest(b)?.reeval||"9";return ra.localeCompare(rb);});
   $("dashList").innerHTML=rows.length?`<div style="overflow-x:auto"><table class="list"><thead><tr><th>가명</th><th>병동·병실</th><th>담당</th><th>마지막 처방</th><th>집에서 한 정도</th><th>다음 재평가</th><th></th></tr></thead><tbody>${rows.map(p=>{const r=latest(p);return `<tr>
-    <td><span class="nm">${esc(p.code)}</span><span class="sub2">마비측 ${esc(p.side||"미입력")}</span></td>
+    <td><span class="nm">${esc(p.code)}${p.demo?` <span class="tag">시연용</span>`:""}</span><span class="sub2">마비측 ${esc(p.side||"미입력")}</span></td>
     <td>${esc([p.ward,p.room].filter(Boolean).join(" "))||`<span class="none">–</span>`}</td>
     <td>${esc(p.therapist||"")||`<span class="none">–</span>`}</td>
     <td class="dt">${r?`${dLabel(r.date)}<span class="sub2">운동 ${r.plan.length}개</span>`:`<span class="none">–</span>`}</td>
@@ -3794,6 +3811,63 @@ $("dashList").onclick=e=>{const b=e.target.closest("button");if(!b)return;const 
 // 환자 관리
 let pmSelected=null,cmpA=null,cmpB=null;
 const KEYS=[["bbs","BBS"],["fac","FAC"],["fmaT","FMA-UE"],["mmse","MMSE"],["mbi","MBI"]];
+
+/* ===== 시연용 환자 ===== */
+// 발표·연습용 가짜 환자입니다. 가명만 쓰고, 언제든 뺄 수 있습니다.
+const DEMOID="demo-";
+function demoDate(n){const d=new Date();d.setDate(d.getDate()+n);return d.toISOString().slice(0,10);}
+function demoRec(id,off,f,plan,reevalOff,perf,by){
+  const date=demoDate(off);
+  const form={i_name:f.name,i_ward:f.ward,i_room:f.room,i_side:f.side,i_care:f.care||"family",
+    i_date:date,i_reeval:reevalOff==null?"":demoDate(reevalOff),
+    i_mSh:""+f.sh,i_mEl:""+f.el,i_mWr:""+f.wr,i_mGr:""+f.gr,i_mHip:""+f.hip,i_mKn:""+f.kn,i_mAn:""+f.an,
+    i_sit:""+f.sit,i_bbs:""+f.bbs,i_fac:""+f.fac,i_fmaT:""+f.fma,i_mmse:""+f.mmse,i_mbi:""+f.mbi,
+    i_swal:!!f.swal,i_saliva:!!f.saliva,i_meal:f.meal||"",i_shpain:!!f.shpain,
+    i_wab:f.wab||"",i_aq:f.aq==null?"":""+f.aq,i_dys:f.dys||""};
+  const r={id,date,savedAt:date+"T10:30:00.000Z",reeval:form.i_reeval,therapist:by,form,
+    plan:plan.map(i=>({id:i,dose:""})),key:{bbs:f.bbs,fac:f.fac,fmaT:f.fma,mmse:f.mmse,mbi:f.mbi}};
+  if(perf)r.perf={days:perf[0],of:7,items:perf[1],reasons:perf[2]||{},note:perf[3]||"",by,at:date+"T10:40:00.000Z"};
+  return r;
+}
+function demoPatients(){
+  const H={name:"한빛",ward:"3병동",room:"302",side:"오른쪽"};
+  const M={name:"솔뫼",ward:"5병동",room:"511",side:"왼쪽",care:"team",shpain:1};
+  const N={name:"새벽",ward:"3병동",room:"307",side:"오른쪽",care:"none",wab:"broca",aq:32,dys:"1"};
+  const P=(o,x)=>Object.assign({},o,x);
+  return [
+  {id:DEMOID+"hanbit",code:"한빛",ward:"3병동",room:"302",side:"오른쪽",therapist:"김수민",team:"신경계재활팀",demo:1,
+   createdAt:demoDate(-63)+"T10:30:00.000Z",updatedAt:demoDate(-7)+"T10:30:00.000Z",records:[
+    demoRec(DEMOID+"h1",-63,P(H,{sh:1,el:1,wr:0,gr:0,hip:2,kn:2,an:1,sit:1,bbs:8,fac:0,fma:12,mmse:20,mbi:32,swal:1,saliva:1,meal:"점도증진제 사용, 식사 중 기침"}),
+      ["sh1","el2","hp4","kn3","t1","o1","p4","at1"],-49,
+      [3,{sh1:"full",el2:"full",hp4:"part",kn3:"full",t1:"none",o1:"full",p4:"part",at1:"full"},
+       {hp4:"너무 어려워서",t1:"너무 어려워서",p4:"방법을 잊어서"},"주말에는 거의 못 했다고 함"],"김수민"),
+    demoRec(DEMOID+"h2",-42,P(H,{sh:2,el:2,wr:1,gr:1,hip:3,kn:3,an:2,sit:2,bbs:17,fac:1,fma:21,mmse:22,mbi:45,swal:1,meal:"점도증진제 유지"}),
+      ["sh4","el3","hp5","kn5","t4","o1","p4","me1"],-28,
+      [5,{sh4:"full",el3:"full",hp5:"full",kn5:"full",t4:"part",o1:"full",p4:"full",me1:"full"},
+       {t4:"시간이 없어서"},"보호자가 저녁마다 같이 함"],"김수민"),
+    demoRec(DEMOID+"h3",-21,P(H,{sh:3,el:3,wr:2,gr:2,hip:3,kn:4,an:3,sit:3,bbs:31,fac:2,fma:32,mmse:24,mbi:60,swal:1,meal:"일반식 전환, 한 입 크기 조절"}),
+      ["sh7","el4","gr3","kn7","b2","an6","o1","p4"],-7,
+      [6,{sh7:"full",el4:"full",gr3:"full",kn7:"full",b2:"full",an6:"part",o1:"full",p4:"full"},
+       {an6:"방법을 잊어서"},""],"김수민"),
+    demoRec(DEMOID+"h4",-7,P(H,{sh:3,el:4,wr:3,gr:3,hip:4,kn:4,an:3,sit:3,bbs:42,fac:3,fma:41,mmse:26,mbi:72,meal:"일반식, 기침 없음"}),
+      ["sh10","el9","gr10","kn7","b3","b5","an6","ad3"],7,null,"김수민")]},
+  {id:DEMOID+"solmoe",code:"솔뫼",ward:"5병동",room:"511",side:"왼쪽",therapist:"박지후",team:"신경계재활팀",demo:1,
+   createdAt:demoDate(-35)+"T14:00:00.000Z",updatedAt:demoDate(-10)+"T14:00:00.000Z",records:[
+    demoRec(DEMOID+"s1",-35,P(M,{sh:2,el:3,wr:2,gr:2,hip:3,kn:3,an:3,sit:2,bbs:24,fac:2,fma:28,mmse:27,mbi:55}),
+      ["sh17","el4","gr6","kn5","b2","t4","at2"],-21,
+      [2,{sh17:"part",el4:"full",gr6:"full",kn5:"full",b2:"none",t4:"full",at2:"none"},
+       {sh17:"아파서",b2:"도와줄 사람이 없어서",at2:"하고 싶지 않아서"},"간병인 교대 시간이라 저녁 운동은 못 한다고 함"],"박지후"),
+    demoRec(DEMOID+"s2",-10,P(M,{sh:2,el:3,wr:2,gr:3,hip:3,kn:4,an:3,sit:2,bbs:26,fac:2,fma:30,mmse:27,mbi:58}),
+      ["sh18","el11","gr9","kn7","b2","ad7"],-2,
+      [3,{sh18:"full",el11:"full",gr9:"part",kn7:"full",b2:"none",ad7:"full"},
+       {gr9:"아파서",b2:"너무 어려워서"},"어깨 통증은 전보다 덜하다고 함"],"박지후")]},
+  {id:DEMOID+"saebyeok",code:"새벽",ward:"3병동",room:"307",side:"오른쪽",therapist:"김수민",team:"신경계재활팀",demo:1,
+   createdAt:demoDate(-14)+"T09:20:00.000Z",updatedAt:demoDate(-14)+"T09:20:00.000Z",records:[
+    demoRec(DEMOID+"n1",-14,P(N,{sh:2,el:2,wr:1,gr:1,hip:2,kn:3,an:2,sit:2,bbs:19,fac:1,fma:20,mmse:19,mbi:40}),
+      ["sh19","el3","hp2","kn5","t4","le3","at1"],0,null,"김수민")]}];
+}
+const hasDemo=()=>pdb.patients.some(p=>p.demo||String(p.id).startsWith(DEMOID));
+function demoBtn(){const b=$("btnDemo");if(b)b.textContent=hasDemo()?"시연용 환자 빼기":"시연용 환자 넣기";}
 
 /* ===== 기능 변화 추이 ===== */
 const dFull=d=>{const m=String(d||"").match(/^(\d{4})-(\d{2})-(\d{2})/);return m?`${m[1]}년 ${+m[2]}월 ${+m[3]}일`:esc(String(d||""));};
@@ -4028,7 +4102,7 @@ initStore();
 })();
 
 // 공용 라이브러리(github 등 웹 주소로 열었을 때 같은 폴더의 library.json)
-loadPref();applyPref();          // 내 설정을 화면에 반영
+loadPref();applyPref();demoBtn();   // 내 설정을 화면에 반영
 (async()=>{
   if(!/^https?:$/.test(location.protocol))return;
   try{const r=await fetch("library.json",{cache:"no-store"});if(!r.ok)return;const j=await r.json();if(j.app!=="homeprog"||!Array.isArray(j.lib))return;
